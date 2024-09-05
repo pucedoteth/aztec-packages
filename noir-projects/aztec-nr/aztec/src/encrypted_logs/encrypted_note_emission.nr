@@ -135,13 +135,24 @@ pub fn encode_and_encrypt_note_with_keys_2<Note, let N: u32, let NB: u32, let M:
     ovpk: Point
 ) -> fn[(&mut PrivateContext, Point)](NoteEmission<Note>) -> () where Note: NoteInterface<N, NB>, [Field; N]: LensForEncryptedLog<N, M> {
     | e: NoteEmission<Note> | {
+    println(100);
+    println(context.this_address().to_field());
         // let ovpk = Point::empty();
         let ovsk_app: Field  = context.request_ovsk_app(ovpk.hash());
+
+    println(200);
+    println(context.this_address().to_field());
 
         let iterator_len = if N > M { M } else { N };
         for i in 0..iterator_len {
         }
 
+    println(300);
+    println(context.this_address().to_field());
+
         context.push_nullifier(0);
+
+    println(400);
+    println(context.this_address().to_field());
     }
 }

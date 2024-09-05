@@ -229,10 +229,11 @@ impl PrivateContext {
             // protocol circuits to validate them by storing the validation request in context.
             let request = get_key_validation_request(pk_m_hash, key_index);
             let request_and_generator = KeyValidationRequestAndGenerator { request, sk_app_generator: sk_generators[key_index] };
+
             // We constrain that the pk_m_hash matches the one in the request (otherwise we could get an arbitrary
             // valid key request and not the one corresponding to pk_m_hash).
             // assert(request.pk_m.hash() == pk_m_hash);
-            self.key_validation_requests_and_generators.push(request_and_generator);
+            // self.key_validation_requests_and_generators.push(request_and_generator);
             self.last_key_validation_requests[key_index] = Option::some(request);
             request.sk_app
         }

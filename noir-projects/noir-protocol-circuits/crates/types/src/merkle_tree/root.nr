@@ -16,7 +16,7 @@ pub fn root_from_sibling_path<let N: u32>(
     sibling_path: [Field; N]
 ) -> Field {
     let mut node = leaf;
-    let indices = leaf_index.to_le_bits(N);
+    let indices = leaf_index.to_le_bits::<N>();
 
     for i in 0..N {
         let (hash_left, hash_right) = if indices[i] == 1 {
