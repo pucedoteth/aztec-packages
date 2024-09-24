@@ -722,11 +722,16 @@ template <typename FF> struct AvmFullRow {
 
     static std::vector<std::string> names();
 <<<<<<< HEAD
+<<<<<<< HEAD
     static constexpr size_t SIZE = 703;
 =======
+=======
+>>>>>>> e9bde8b8a (trace changes)
 <<<<<<< HEAD
     static constexpr size_t SIZE = 709;
 =======
+=======
+>>>>>>> 08514e3af (trace changes)
 <<<<<<< HEAD
     static constexpr size_t SIZE = 708;
 =======
@@ -736,8 +741,17 @@ template <typename FF> struct AvmFullRow {
     static constexpr size_t SIZE = 702;
 >>>>>>> 47c2f8135 (feat(avm): add pil + trace placeholders)
 >>>>>>> dd7aaa51b (feat(avm): add pil + trace placeholders)
+<<<<<<< HEAD
 >>>>>>> e3a99d4da (feat(avm): add pil + trace placeholders)
+<<<<<<< HEAD
 >>>>>>> b132a4e42 (feat(avm): add pil + trace placeholders)
+=======
+=======
+=======
+    static constexpr size_t SIZE = 703;
+>>>>>>> 0df7dc0ca (trace changes)
+>>>>>>> 08514e3af (trace changes)
+>>>>>>> e9bde8b8a (trace changes)
 };
 
 template <typename FF> std::ostream& operator<<(std::ostream& os, AvmFullRow<FF> const& row);
