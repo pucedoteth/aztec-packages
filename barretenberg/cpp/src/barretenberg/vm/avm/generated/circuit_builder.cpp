@@ -294,7 +294,6 @@ AvmCircuitBuilder::ProverPolynomials AvmCircuitBuilder::compute_polynomials() co
                 polys.main_sel_op_sload.set_if_valid_index(i, rows[i].main_sel_op_sload);
                 polys.main_sel_op_sstore.set_if_valid_index(i, rows[i].main_sel_op_sstore);
                 polys.main_sel_op_static_call.set_if_valid_index(i, rows[i].main_sel_op_static_call);
-                polys.main_sel_op_storage_address.set_if_valid_index(i, rows[i].main_sel_op_storage_address);
                 polys.main_sel_op_sub.set_if_valid_index(i, rows[i].main_sel_op_sub);
                 polys.main_sel_op_timestamp.set_if_valid_index(i, rows[i].main_sel_op_timestamp);
                 polys.main_sel_op_transaction_fee.set_if_valid_index(i, rows[i].main_sel_op_transaction_fee);
