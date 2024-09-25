@@ -37,12 +37,12 @@ class AvmExecutionTests : public ::testing::Test {
                                                     ExecutionHints execution_hints,
                                                     uint32_t side_effect_counter,
                                                     std::vector<FF> calldata,
-                                                    std::vector<uint8_t> contract_bytecode) {
+                                                    const std::vector<std::vector<uint8_t>>& all_contracts_bytecode) {
             return AvmTraceBuilder(std::move(public_inputs),
                                    std::move(execution_hints),
                                    side_effect_counter,
                                    std::move(calldata),
-                                   contract_bytecode)
+                                   all_contracts_bytecode)
                 .set_full_precomputed_tables(false)
                 .set_range_check_required(false);
         });
@@ -1778,9 +1778,9 @@ TEST_F(AvmExecutionTests, ExecutorThrowsWithTooMuchGasAllocated)
     auto bytecode = hex_to_bytes(bytecode_hex);
     auto instructions = Deserialization::parse(bytecode);
 
-    EXPECT_THROW_WITH_MESSAGE(
-        Execution::gen_trace(instructions, returndata, calldata, public_inputs_vec),
-        "Cannot allocate more than MAX_L2_GAS_PER_ENQUEUED_CALL to the AVM for execution of an enqueued call");
+    EXPECT_THROW_WITH_MESSAGE(Execution::gen_trace(bytecode, calldata, public_inputs_vec, returndata, ExecutionHints()),
+                              "Cannot allocate more than MAX_L2_GAS_PER_ENQUEUED_CALL to the AVM for "
+                              "execution of an enqueued call");
 }
 
 // Should throw whenever the wrong number of public inputs are provided
@@ -2335,7 +2335,7 @@ TEST_F(AvmExecutionTests, opGetContractInstanceOpcodes)
     auto execution_hints =
         ExecutionHints().with_contract_instance_hints({ { address, { address, 1, 2, 3, 4, 5, public_keys_hints } } });
 
-    auto trace = Execution::gen_trace(instructions, returndata, calldata, public_inputs_vec, execution_hints);
+    auto trace = Execution::gen_trace(bytecode, calldata, public_inputs_vec, returndata, execution_hints);
     EXPECT_EQ(returndata, std::vector<FF>({ 1, 2, 3, 4, 5, returned_point.x })); // The first one represents true
 
     validate_trace(std::move(trace), public_inputs, calldata, returndata);
