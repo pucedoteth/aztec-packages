@@ -116,6 +116,47 @@ WASM_EXPORT void acir_fold_and_verify_program_stack(uint8_t const* acir_vec, uin
     info("acir_fold_and_verify_program_stack result: ", *result);
 }
 
+WASM_EXPORT void acir_prove_aztec_client(uint8_t const* acir_vec, uint8_t const* witness_vec, bool* result)
+{
+    using ProgramStack = acir_format::AcirProgramStack;
+    using Builder = MegaCircuitBuilder;
+
+    auto constraint_systems =
+        acir_format::program_buf_to_acir_format(from_buffer<std::vector<uint8_t>>(acir_vec), /*honk_recursion=*/false);
+    auto witness_stack = acir_format::witness_buf_to_witness_stack(from_buffer<std::vector<uint8_t>>(witness_vec));
+
+    ProgramStack program_stack{ constraint_systems, witness_stack };
+
+    ClientIVC ivc;
+    ivc.auto_verify_mode = true;
+    ivc.trace_structure = TraceStructure::SMALL_TEST;
+
+    bool is_kernel = false;
+    while (!program_stack.empty()) {
+        auto stack_item = program_stack.back();
+
+        // Construct a bberg circuit from the acir representation
+        auto builder = acir_format::create_circuit<Builder>(
+            stack_item.constraints, 0, stack_item.witness, /*honk_recursion=*/false, ivc.goblin.op_queue);
+
+        builder.databus_propagation_data.is_kernel = is_kernel;
+        is_kernel = !is_kernel; // toggle on/off so every second circuit is intepreted as a kernel
+
+        ivc.accumulate(builder);
+
+        program_stack.pop_back();
+    }
+    *result = ivc.prove_and_verify();
+    info("verified?: ", *result);
+}
+
+WASM_EXPORT void acir_verify_aztec_client_proof(in_ptr acir_composer_ptr, uint8_t const* proof_buf, bool* result)
+{
+    auto acir_composer = reinterpret_cast<acir_proofs::AcirComposer*>(*acir_composer_ptr);
+    auto proof = from_buffer<std::vector<uint8_t>>(proof_buf);
+    *result = acir_composer->verify_proof(proof);
+}
+
 WASM_EXPORT void acir_prove_and_verify_mega_honk(uint8_t const* acir_vec, uint8_t const* witness_vec, bool* result)
 {
     auto constraint_system =

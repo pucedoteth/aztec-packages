@@ -9,10 +9,10 @@ async function runTest(
   witness: Uint8Array,
   threads?: number
 ) {
-  const { UltraHonkBackend, BarretenbergVerifier } = await import("@aztec/bb.js");
+  const { AztecClientBackend, BarretenbergVerifier } = await import("@aztec/bb.js");
 
   debug("starting test...");
-  const backend = new UltraHonkBackend(bytecode, { threads });
+  const backend = new AztecClientBackend(bytecode, { threads });
   const proof = await backend.generateProof(witness);
 
   debug(`getting the verification key...`);
