@@ -1,10 +1,12 @@
 use crate::{
     address::public_keys_hash::PublicKeysHash, constants::GENERATOR_INDEX__PUBLIC_KEYS_HASH,
-    hash::poseidon2_hash_with_separator, point::POINT_LENGTH,
-    traits::{Deserialize, Serialize, Empty, is_empty, Hash}
+    hash::poseidon2_hash_with_separator, point::POINT_LENGTH, traits::{Deserialize, Serialize, Hash}
 };
 
 use dep::std::embedded_curve_ops::EmbeddedCurvePoint as Point;
+use dep::std::embedded_curve_ops::fixed_base_scalar_mul as derive_public_key;
+use std::embedded_curve_ops::EmbeddedCurveScalar;
+use std::default::Default;
 
 pub global PUBLIC_KEYS_LENGTH: u32 = 12;
 
@@ -96,13 +98,45 @@ impl Serialize<POINT_LENGTH> for TpkM {
     }
 }
 
-impl Empty for PublicKeys {
-    fn empty() -> Self {
+impl Default for PublicKeys {
+    // This information is duplicated in circuits.js/src/types/public_keys.ts
+    // We use this because empty will produce a point not on the curve.
+    // This is:
+    // "az_null_npk"
+    // "az_null_ivpk"
+    // "az_null_ovpk"
+    // "az_null_tpk"
+    // as bytes, hashed to curve using grumpkin::g1::affine_element::hash_to_curve(<X>, 0);
+    fn default() -> Self {
         PublicKeys {
-            npk_m: NpkM { inner: Point::empty() },
-            ivpk_m: IvpkM { inner: Point::empty() },
-            ovpk_m: OvpkM { inner: Point::empty() },
-            tpk_m: TpkM { inner: Point::empty() }
+            npk_m: NpkM {
+                inner: Point {
+                    x: 0x01498945581e0eb9f8427ad6021184c700ef091d570892c437d12c7d90364bbd,
+                    y: 0x170ae506787c5c43d6ca9255d571c10fa9ffa9d141666e290c347c5c9ab7e344,
+                    is_infinite: false
+                }
+            },
+            ivpk_m: IvpkM {
+                inner: Point {
+                    x: 0x00c044b05b6ca83b9c2dbae79cc1135155956a64e136819136e9947fe5e5866c,
+                    y: 0x1c1f0ca244c7cd46b682552bff8ae77dea40b966a71de076ec3b7678f2bdb151,
+                    is_infinite: false
+                }
+            },
+            ovpk_m: OvpkM {
+                inner: Point {
+                    x: 0x1b00316144359e9a3ec8e49c1cdb7eeb0cedd190dfd9dc90eea5115aa779e287,
+                    y: 0x080ffc74d7a8b0bccb88ac11f45874172f3847eb8b92654aaa58a3d2b8dc7833,
+                    is_infinite: false
+                }
+            },
+            tpk_m: TpkM {
+                inner: Point {
+                    x: 0x019c111f36ad3fc1d9b7a7a14344314d2864b94f030594cd67f753ef774a1efb,
+                    y: 0x2039907fe37f08d10739255141bb066c506a12f7d1e8dfec21abc58494705b6f,
+                    is_infinite: false
+                }
+            }
         }
     }
 }
@@ -117,9 +151,18 @@ impl Eq for PublicKeys {
 }
 
 impl PublicKeys {
+    pub fn is_empty(self) -> bool {
+        PublicKeys {
+            npk_m: NpkM { inner: Point::empty() },
+            ivpk_m: IvpkM { inner: Point::empty() },
+            ovpk_m: OvpkM { inner: Point::empty() },
+            tpk_m: TpkM { inner: Point::empty() }
+        }.eq(self)
+    }
+
     pub fn hash(self) -> PublicKeysHash {
         PublicKeysHash::from_field(
-            if is_empty(self) {
+            if self.is_empty() {
             0
         } else {
             poseidon2_hash_with_separator(self.serialize(), GENERATOR_INDEX__PUBLIC_KEYS_HASH as Field)
@@ -174,13 +217,13 @@ unconstrained fn compute_public_keys_hash() {
 }
 
 #[test]
-unconstrained fn compute_empty_hash() {
-    let keys = PublicKeys::empty();
+unconstrained fn compute_default_hash() {
+    let keys = PublicKeys::default();
 
     let actual = keys.hash();
-    let test_data_empty_hash = 0x0000000000000000000000000000000000000000000000000000000000000000;
+    let test_data_default_hash = 0x2ed36bfe5497fb6aa79ff85ed6657da92c17d50ac1ab5960e79a78c33687156f;
 
-    assert(actual.to_field() == test_data_empty_hash);
+    assert(actual.to_field() == test_data_default_hash);
 }
 
 #[test]

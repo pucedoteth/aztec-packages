@@ -1,8 +1,9 @@
 import { poseidon2HashWithSeparator } from '@aztec/foundation/crypto';
-import { Fr, Point } from '@aztec/foundation/fields';
+import { Fq, Fr, Point } from '@aztec/foundation/fields';
 import { BufferReader, FieldReader, serializeToBuffer } from '@aztec/foundation/serialize';
 
 import { GeneratorIndex } from '../constants.gen.js';
+import { derivePublicKeyFromSecretKey } from '../keys/derivation.js';
 import { type PublicKey } from './public_key.js';
 
 export class PublicKeys {
@@ -41,8 +42,37 @@ export class PublicKeys {
     );
   }
 
-  static empty(): PublicKeys {
-    return new PublicKeys(Point.ZERO, Point.ZERO, Point.ZERO, Point.ZERO);
+  static default(): PublicKeys {
+    // This information is duplicated in noir-protocol-circuits/crates/types/src/public_keys.nr
+    // We use this because empty will produce a point not on the curve.
+    // This is:
+    // "az_null_npk"
+    // "az_null_ivpk"
+    // "az_null_ovpk"
+    // "az_null_tpk"
+    // as bytes, hashed to curve using grumpkin::g1::affine_element::hash_to_curve(<X>, 0);
+    return new PublicKeys(
+      new Point(
+        new Fr(0x01498945581e0eb9f8427ad6021184c700ef091d570892c437d12c7d90364bbdn),
+        new Fr(0x170ae506787c5c43d6ca9255d571c10fa9ffa9d141666e290c347c5c9ab7e344n),
+        false,
+      ),
+      new Point(
+        new Fr(0x00c044b05b6ca83b9c2dbae79cc1135155956a64e136819136e9947fe5e5866cn),
+        new Fr(0x1c1f0ca244c7cd46b682552bff8ae77dea40b966a71de076ec3b7678f2bdb151n),
+        false,
+      ),
+      new Point(
+        new Fr(0x1b00316144359e9a3ec8e49c1cdb7eeb0cedd190dfd9dc90eea5115aa779e287n),
+        new Fr(0x080ffc74d7a8b0bccb88ac11f45874172f3847eb8b92654aaa58a3d2b8dc7833n),
+        false,
+      ),
+      new Point(
+        new Fr(0x019c111f36ad3fc1d9b7a7a14344314d2864b94f030594cd67f753ef774a1efbn),
+        new Fr(0x2039907fe37f08d10739255141bb066c506a12f7d1e8dfec21abc58494705b6fn),
+        false,
+      ),
+    );
   }
 
   static random(): PublicKeys {

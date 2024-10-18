@@ -5,7 +5,7 @@ import {
   getDefaultInitializer,
 } from '@aztec/foundation/abi';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
-import { Fr } from '@aztec/foundation/fields';
+import { Fr, Point } from '@aztec/foundation/fields';
 import { BufferReader, numToUInt8, serializeToBuffer } from '@aztec/foundation/serialize';
 import { type FieldsOf } from '@aztec/foundation/types';
 
@@ -80,6 +80,7 @@ export class SerializableContractInstance {
     });
   }
 
+  // This is only used for test purposes. PublicKeys like below will fail in normal use due to the points not being on the curve during ec ops.
   static empty() {
     return new SerializableContractInstance({
       version: VERSION,
@@ -87,7 +88,7 @@ export class SerializableContractInstance {
       deployer: AztecAddress.zero(),
       contractClassId: Fr.zero(),
       initializationHash: Fr.zero(),
-      publicKeys: PublicKeys.empty(),
+      publicKeys: new PublicKeys(Point.ZERO, Point.ZERO, Point.ZERO, Point.ZERO),
     });
   }
 }
@@ -122,7 +123,7 @@ export function getContractInstanceFromDeployParams(
           args,
         )
       : computeInitializationHash(constructorArtifact, args);
-  const publicKeys = opts.publicKeys ?? PublicKeys.empty();
+  const publicKeys = opts.publicKeys ?? PublicKeys.default();
 
   const instance: ContractInstance = {
     contractClassId,

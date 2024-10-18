@@ -148,7 +148,7 @@ describe('Kernel Prover', () => {
 
     oracle.getContractAddressPreimage.mockResolvedValue({
       contractClassId: Fr.random(),
-      publicKeys: PublicKeys.empty(),
+      publicKeys: PublicKeys.random(),
       saltedInitializationHash: Fr.random(),
     });
     oracle.getContractClassIdPreimage.mockResolvedValue({
