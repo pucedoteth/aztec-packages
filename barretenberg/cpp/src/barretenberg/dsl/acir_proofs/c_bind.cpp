@@ -234,11 +234,12 @@ std::vector<uint8_t> decompressedBuffer(uint8_t* bytes, size_t size)
     return content;
 }
 
-std::vector<std::string> decompress_all_gzips(const std::vector<std::string>& compressed_strings)
+std::vector<std::vector<uint8_t>> decompress_all_gzips(std::vector<std::string>& compressed_strings)
 {
-    std::vector<std::string> decompressed_strings;
-    for (const auto& compressed_data : compressed_strings) {
-        decompressed_strings.push_back(decompressedBuffer(std::reinterpret_cast<uint8_t*>(compressed_data.data())));
+    std::vector<std::vector<uint8_t>> decompressed_strings;
+    for (auto& compressed_data : compressed_strings) {
+        decompressed_strings.push_back(
+            decompressedBuffer(reinterpret_cast<uint8_t*>(compressed_data.data()), compressed_data.size()));
     }
 
     return decompressed_strings;
@@ -355,12 +356,12 @@ WASM_EXPORT void acir_prove_aztec_client(uint8_t const* acirs_msgpack_size_prepe
     for (auto [bincode, wit] : zip_view(acirs, witnesses)) {
         // TODO(#7371) there is a lot of copying going on in bincode, we should make sure this writes as a buffer in
         // the future
-        std::vector<uint8_t> constraint_buf(bincode.begin(), bincode.end());
-        std::vector<uint8_t> witness_buf(wit.begin(), wit.end());
+        // std::vector<uint8_t> constraint_buf(bincode.begin(), bincode.end());
+        // std::vector<uint8_t> witness_buf(wit.begin(), wit.end());
 
         acir_format::AcirFormat constraints =
-            acir_format::circuit_buf_to_acir_format(constraint_buf, /*honk_recursion=*/false);
-        acir_format::WitnessVector witness = acir_format::witness_buf_to_witness_data(witness_buf);
+            acir_format::circuit_buf_to_acir_format(bincode, /*honk_recursion=*/false);
+        acir_format::WitnessVector witness = acir_format::witness_buf_to_witness_data(wit);
 
         folding_stack.push_back(Program{ constraints, witness });
     }
