@@ -416,7 +416,9 @@
       "inherits": "wasm",
       "binaryDir": "build-wasm-threads",
       "environment": {
-        "CMAKE_BUILD_TYPE": "Release"
+        "CMAKE_BUILD_TYPE": "Release",
+        "LDFLAGS": "-lwasy-emulated-mman",
+        "CMAKE_CXX_FLAGS": "-DFREESTANDING -ffreestanding -D_WASI_EMULATED_MMAN"
       },
       "cacheVariables": {
         "MULTITHREADING": "ON"

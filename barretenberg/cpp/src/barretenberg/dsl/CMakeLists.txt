@@ -23,5 +23,5 @@ barretenberg_module(
 )
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-    target_compile_options(dsl_objects PRIVATE -Wno-sign-conversion -Wno-float-conversion -Wno-implicit-int-float-conversion -Wno-implicit-int-conversion)
+    target_compile_options(dsl_objects PRIVATE -Wno-sign-compare -Wno-unused-parameter -Wno-implicit-int-conversion -Wno-sign-conversion -Wno-implicit-function-declaration)
 endif()

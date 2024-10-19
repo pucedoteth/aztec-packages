@@ -7,7 +7,7 @@
 #include "barretenberg/common/serialize.hpp"
 #include "barretenberg/common/slab_allocator.hpp"
 #include "barretenberg/dsl/acir_format/acir_format.hpp"
-#include "barretenberg/dsl/acir_proofs/miniz.h"
+#include "barretenberg/dsl/acir_proofs/libdeflate/libdeflate.h"
 #include "barretenberg/plonk/proof_system/proving_key/serialize.hpp"
 #include "barretenberg/plonk/proof_system/verification_key/verification_key.hpp"
 #include "barretenberg/serialize/msgpack.hpp"
@@ -208,80 +208,37 @@ WASM_EXPORT void acir_serialize_verification_key_into_fields(in_ptr acir_compose
     write(out_key_hash, vk_hash);
 }
 
-// std::vector<uint8_t> decompressedBuffer(uint8_t* bytes, size_t size)
-// {
-//     std::vector<uint8_t> content;
-//     // initial size guess
-//     content.resize(1024ULL * 128ULL);
-//     for (;;) {
-//         auto decompressor = std::unique_ptr<libdeflate_decompressor, void (*)(libdeflate_decompressor*)>{
-//             libdeflate_alloc_decompressor(), libdeflate_free_decompressor
-//         };
-//         size_t actual_size = 0;
-//         libdeflate_result decompress_result = libdeflate_gzip_decompress(
-//             decompressor.get(), bytes, size, std::data(content), std::size(content), &actual_size);
-//         if (decompress_result == LIBDEFLATE_INSUFFICIENT_SPACE) {
-//             // need a bigger buffer
-//             content.resize(content.size() * 2);
-//             continue;
-//         }
-//         if (decompress_result == LIBDEFLATE_BAD_DATA) {
-//             throw std::invalid_argument("bad gzip data in copied hack function");
-//         }
-//         content.resize(actual_size);
-//         break;
-//     }
-//     return content;
-// }
-
-bool decompress_gzip(const std::string& compressed_data, std::string& decompressed_output)
+std::vector<uint8_t> decompressedBuffer(uint8_t* bytes, size_t size)
 {
-    // Skip the first 10 bytes (standard gzip header length)
-    const unsigned char* compressed_data_ptr = reinterpret_cast<const unsigned char*>(compressed_data.data());
-    size_t compressed_data_size = compressed_data.size();
-
-    // Gzip header is 10 bytes
-    if (compressed_data_size <= 10) {
-        std::cerr << "Compressed data too small to be valid gzip" << std::endl;
-        return false;
+    std::vector<uint8_t> content;
+    // initial size guess
+    content.resize(1024ULL * 128ULL);
+    for (;;) {
+        auto decompressor = std::unique_ptr<libdeflate_decompressor, void (*)(libdeflate_decompressor*)>{
+            libdeflate_alloc_decompressor(), libdeflate_free_decompressor
+        };
+        size_t actual_size = 0;
+        libdeflate_result decompress_result = libdeflate_gzip_decompress(
+            decompressor.get(), bytes, size, std::data(content), std::size(content), &actual_size);
+        if (decompress_result == LIBDEFLATE_INSUFFICIENT_SPACE) {
+            // need a bigger buffer
+            content.resize(content.size() * 2);
+            continue;
+        }
+        if (decompress_result == LIBDEFLATE_BAD_DATA) {
+            info("bad gzip data in copied hack function");
+        }
+        content.resize(actual_size);
+        break;
     }
-
-    // Pointer to actual compressed data (skip the gzip header)
-    compressed_data_ptr += 10;
-    compressed_data_size -= 10;
-
-    // Output buffer for decompressed data, estimated size
-    size_t decompressed_size = compressed_data_size * 5; // Adjust size as necessary
-    std::vector<unsigned char> decompressed_buffer(decompressed_size);
-
-    // Use tinfl_decompress_mem_to_mem from miniz for raw DEFLATE decompression
-    int status = tinfl_decompress_mem_to_mem(decompressed_buffer.data(),
-                                             decompressed_size,
-                                             compressed_data_ptr,
-                                             compressed_data_size,
-                                             TINFL_FLAG_PARSE_ZLIB_HEADER);
-
-    if (status == TINFL_STATUS_DONE) {
-        decompressed_output.assign(decompressed_buffer.begin(), decompressed_buffer.begin() + decompressed_size);
-        return true;
-    } else {
-        std::cerr << "Decompression failed with status: " << status << std::endl;
-        return false;
-    }
+    return content;
 }
 
 std::vector<std::string> decompress_all_gzips(const std::vector<std::string>& compressed_strings)
 {
     std::vector<std::string> decompressed_strings;
-
-    // Decompress each compressed string in the vector
     for (const auto& compressed_data : compressed_strings) {
-        std::string result;
-        if (decompress_gzip(compressed_data, result)) {
-            decompressed_strings.push_back(result);
-        } else {
-            info("Decompression failed");
-        }
+        decompressed_strings.push_back(decompressedBuffer(std::reinterpret_cast<uint8_t*>(compressed_data.data())));
     }
 
     return decompressed_strings;
