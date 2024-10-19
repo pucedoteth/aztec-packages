@@ -1,6 +1,6 @@
 #!/bin/sh
-set -eu
-
+set -eux
+echo "in prove_and_verify.sh"
 VFLAG=${VERBOSE:+-v}
 
 # This is the fastest flow, because it only generates pk/vk once, gate count once, etc.

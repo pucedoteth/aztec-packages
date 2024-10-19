@@ -24,8 +24,8 @@ target_sources(
 )
 
 function(barretenberg_module MODULE_NAME)
-    file(GLOB_RECURSE SOURCE_FILES *.cpp)
-    file(GLOB_RECURSE HEADER_FILES *.hpp *.tcc)
+    file(GLOB_RECURSE SOURCE_FILES *.cpp *.c)
+    file(GLOB_RECURSE HEADER_FILES *.hpp *.tcc *.h)
     list(FILTER SOURCE_FILES EXCLUDE REGEX ".*\.(fuzzer|test|bench).cpp$")
 
     target_sources(

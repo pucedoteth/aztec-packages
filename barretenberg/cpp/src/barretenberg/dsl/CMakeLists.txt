@@ -21,3 +21,7 @@ barretenberg_module(
     dsl
     ${DSL_DEPENDENCIES}
 )
+
+if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    target_compile_options(dsl_objects PRIVATE -Wno-sign-conversion -Wno-float-conversion -Wno-implicit-int-float-conversion -Wno-implicit-int-conversion)
+endif()

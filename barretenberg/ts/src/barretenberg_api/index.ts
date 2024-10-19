@@ -11,6 +11,7 @@ import {
   OutputType,
 } from '../serialize/index.js';
 import { Fr, Fq, Point, Buffer32, Buffer128, Ptr } from '../types/index.js';
+import { encode, decode } from '@msgpack/msgpack';
 
 export class BarretenbergApi {
   constructor(protected wasm: BarretenbergWasmWorker) {}
@@ -531,6 +532,21 @@ export class BarretenbergApi {
     return out as any;
   }
 
+//   gunzipArray(bufferArray: Uint8Array[]): Uint8Array[] {
+//     return bufferArray.map((buffer) => {
+//         // Ensure each element is decompressed using gunzipSync
+//         const decompressed = gunzipSync(Buffer.from(buffer));  // Convert Uint8Array to Buffer
+//         return new Uint8Array(decompressed);  // Convert Buffer back to Uint8Array
+//     });
+// }
+
+//   unzipEncode (arr: Uint8Array[]) {
+//     const decompressed = this.gunzipArray(arr);
+//     const packedCompressed = encode(decompressed);
+//     return packedCompressed;
+//   }
+
+
   async acirProveAztecClient(acirVec: Uint8Array, witnessVec: Uint8Array): Promise<Uint8Array> {
     const inArgs = [acirVec, witnessVec].map(serializeBufferable);
     const outTypes: OutputType[] = [BufferDeserializer()];
@@ -539,7 +555,9 @@ export class BarretenbergApi {
       inArgs,
       outTypes.map(t => t.SIZE_IN_BYTES),
     );
+    console.log("wasm export called");
     const out = result.map((r, i) => outTypes[i].fromBuffer(r));
+    console.log("out created");
     return out[0];
   }
 
@@ -1143,7 +1161,9 @@ export class BarretenbergApiSync {
       inArgs,
       outTypes.map(t => t.SIZE_IN_BYTES),
     );
+    console.log("wasm export called");
     const out = result.map((r, i) => outTypes[i].fromBuffer(r));
+    console.log("out created");
     return out[0];
   }
 

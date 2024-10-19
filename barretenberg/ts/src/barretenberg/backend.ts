@@ -187,33 +187,35 @@ export class AztecClientBackend {
 
   protected api!: Barretenberg;
 
-  constructor(protected acirUncompressedBytecode: Uint8Array, protected options: BackendOptions = { threads: 1 }) {}
+  constructor(protected acirMsgpack: Uint8Array, protected options: BackendOptions = { threads: 1 }) {}
+  // constructor(protected acirMsgpack: Uint8Array[], protected options: BackendOptions = { threads: 1 }) {}
 
   /** @ignore */
   async instantiate(): Promise<void> {
     if (!this.api) {
       const api = await Barretenberg.new(this.options);
-      await api.initSRSForCircuitSize(1<<19); // WORKTODO
+      await api.initSRSForCircuitSize(1<<20); // WORKTODO
       this.api = api;
     }
   }
 
-  async generateProof(uncompressedWitness: Uint8Array): Promise<Uint8Array> {
+  async generateProof(witnessMsgpack: Uint8Array): Promise<Uint8Array> {
     await this.instantiate();
-    return this.api.acirProveAztecClient(this.acirUncompressedBytecode, uncompressedWitness);
+    return this.api.acirProveAztecClient(this.acirMsgpack, witnessMsgpack);
+    // return this.api.acirProveAztecClient(this.acirMsgpack, witnessMsgpack);
   }
 
-  async verifyProof(proof: Uint8Array): Promise<boolean> {
-    await this.instantiate();
-    const vkBuf = await this.api.acirWriteVkUltraHonk(this.acirUncompressedBytecode);
+  // async verifyProof(proof: Uint8Array): Promise<boolean> {
+  //   await this.instantiate();
+  //   const vkBuf = await this.api.acirWriteVkUltraHonk(this.acirMsgpack);
 
-    return await this.api.acirVerifyAztecClientProof(proof, new RawBuffer(vkBuf));
-  }
+  //   return await this.api.acirVerifyAztecClientProof(proof, new RawBuffer(vkBuf));
+  // }
 
-  async getVerificationKey(): Promise<Uint8Array> {
-    await this.instantiate();
-    return await this.api.acirWriteVkUltraHonk(this.acirUncompressedBytecode);
-  }
+  // async getVerificationKey(): Promise<Uint8Array> {
+  //   await this.instantiate();
+  //   return await this.api.acirWriteVkUltraHonk(this.acirMsgpack);
+  // }
 
   async destroy(): Promise<void> {
     if (!this.api) {

@@ -7,8 +7,10 @@
 #include "barretenberg/common/serialize.hpp"
 #include "barretenberg/common/slab_allocator.hpp"
 #include "barretenberg/dsl/acir_format/acir_format.hpp"
+#include "barretenberg/dsl/acir_proofs/miniz.h"
 #include "barretenberg/plonk/proof_system/proving_key/serialize.hpp"
 #include "barretenberg/plonk/proof_system/verification_key/verification_key.hpp"
+#include "barretenberg/serialize/msgpack.hpp"
 #include "barretenberg/srs/global_crs.hpp"
 #include <cstdint>
 #include <memory>
@@ -116,47 +118,6 @@ WASM_EXPORT void acir_fold_and_verify_program_stack(uint8_t const* acir_vec, uin
     info("acir_fold_and_verify_program_stack result: ", *result);
 }
 
-WASM_EXPORT void acir_prove_aztec_client(uint8_t const* acir_vec, uint8_t const* witness_vec, bool* result)
-{
-    using ProgramStack = acir_format::AcirProgramStack;
-    using Builder = MegaCircuitBuilder;
-
-    auto constraint_systems =
-        acir_format::program_buf_to_acir_format(from_buffer<std::vector<uint8_t>>(acir_vec), /*honk_recursion=*/false);
-    auto witness_stack = acir_format::witness_buf_to_witness_stack(from_buffer<std::vector<uint8_t>>(witness_vec));
-
-    ProgramStack program_stack{ constraint_systems, witness_stack };
-
-    ClientIVC ivc;
-    ivc.auto_verify_mode = true;
-    ivc.trace_structure = TraceStructure::SMALL_TEST;
-
-    bool is_kernel = false;
-    while (!program_stack.empty()) {
-        auto stack_item = program_stack.back();
-
-        // Construct a bberg circuit from the acir representation
-        auto builder = acir_format::create_circuit<Builder>(
-            stack_item.constraints, 0, stack_item.witness, /*honk_recursion=*/false, ivc.goblin.op_queue);
-
-        builder.databus_propagation_data.is_kernel = is_kernel;
-        is_kernel = !is_kernel; // toggle on/off so every second circuit is intepreted as a kernel
-
-        ivc.accumulate(builder);
-
-        program_stack.pop_back();
-    }
-    *result = ivc.prove_and_verify();
-    info("verified?: ", *result);
-}
-
-WASM_EXPORT void acir_verify_aztec_client_proof(in_ptr acir_composer_ptr, uint8_t const* proof_buf, bool* result)
-{
-    auto acir_composer = reinterpret_cast<acir_proofs::AcirComposer*>(*acir_composer_ptr);
-    auto proof = from_buffer<std::vector<uint8_t>>(proof_buf);
-    *result = acir_composer->verify_proof(proof);
-}
-
 WASM_EXPORT void acir_prove_and_verify_mega_honk(uint8_t const* acir_vec, uint8_t const* witness_vec, bool* result)
 {
     auto constraint_system =
@@ -247,6 +208,210 @@ WASM_EXPORT void acir_serialize_verification_key_into_fields(in_ptr acir_compose
     write(out_key_hash, vk_hash);
 }
 
+// std::vector<uint8_t> decompressedBuffer(uint8_t* bytes, size_t size)
+// {
+//     std::vector<uint8_t> content;
+//     // initial size guess
+//     content.resize(1024ULL * 128ULL);
+//     for (;;) {
+//         auto decompressor = std::unique_ptr<libdeflate_decompressor, void (*)(libdeflate_decompressor*)>{
+//             libdeflate_alloc_decompressor(), libdeflate_free_decompressor
+//         };
+//         size_t actual_size = 0;
+//         libdeflate_result decompress_result = libdeflate_gzip_decompress(
+//             decompressor.get(), bytes, size, std::data(content), std::size(content), &actual_size);
+//         if (decompress_result == LIBDEFLATE_INSUFFICIENT_SPACE) {
+//             // need a bigger buffer
+//             content.resize(content.size() * 2);
+//             continue;
+//         }
+//         if (decompress_result == LIBDEFLATE_BAD_DATA) {
+//             throw std::invalid_argument("bad gzip data in copied hack function");
+//         }
+//         content.resize(actual_size);
+//         break;
+//     }
+//     return content;
+// }
+
+bool gunzipString(const std::string& compressed, std::string& decompressed)
+{
+    mz_ulong decompressed_size = compressed.size() * 4; // Initial guess for output size
+    decompressed.resize(decompressed_size);             // Allocate space for decompressed data
+
+    // Perform decompression using miniz
+    int status = mz_uncompress(reinterpret_cast<unsigned char*>(&decompressed[0]),        // Decompressed output
+                               &decompressed_size,                                        // Size of decompressed output
+                               reinterpret_cast<const unsigned char*>(compressed.data()), // Input compressed data
+                               compressed.size() // Size of input compressed data
+    );
+
+    // If the decompression fails, handle the error
+    if (status != MZ_OK) {
+        std::cerr << "Decompression failed with error: " << status << std::endl;
+        return false;
+    }
+
+    // Resize the decompressed string to the actual decompressed size
+    decompressed.resize(decompressed_size);
+
+    return true;
+}
+
+std::vector<std::string> gunzipVector(const std::vector<std::string>& compressedStrings)
+{
+    std::vector<std::string> decompressedStrings;
+
+    for (const auto& compressed : compressedStrings) {
+        std::string decompressed;
+        if (gunzipString(compressed, decompressed)) {
+            decompressedStrings.push_back(decompressed);
+        } else {
+            std::cerr << "Failed to decompress one of the strings." << std::endl;
+        }
+    }
+
+    return decompressedStrings;
+}
+
+WASM_EXPORT void acir_prove_aztec_client(uint8_t const* acirs_msgpack_size_prepended,
+                                         uint8_t const* witnesses_msgpack_size_prepended,
+                                         bool* result)
+// WASM_EXPORT void acir_prove_aztec_client(uint8_t const* acir_msgpack,
+//                                          uint8_t const* witness_msgpack,
+//                                          bool* result)
+{
+    using Program = acir_format::AcirProgram;
+    // using ProgramStack = acir_format::AcirProgramStack;
+    // using Builder = MegaCircuitBuilder;
+
+    // auto constraint_systems =
+    //     acir_format::program_buf_to_acir_format(from_buffer<std::vector<uint8_t>>(acir_vec),
+    //     /*honk_recursion=*/false);
+    // auto witness_stack = acir_format::witness_buf_to_witness_stack(from_buffer<std::vector<uint8_t>>(witness_vec));
+
+    // ProgramStack program_stack{ constraint_systems, witness_stack };
+
+    // ClientIVC ivc;
+    // ivc.auto_verify_mode = true;
+    // ivc.trace_structure = TraceStructure::SMALL_TEST;
+
+    // bool is_kernel = false;
+    // while (!program_stack.empty()) {
+    //     auto stack_item = program_stack.back();
+
+    //     // Construct a bberg circuit from the acir representation
+    //     auto builder = acir_format::create_circuit<Builder>(
+    //         stack_item.constraints, 0, stack_item.witness, /*honk_recursion=*/false, ivc.goblin.op_queue);
+
+    //     builder.databus_propagation_data.is_kernel = is_kernel;
+    //     is_kernel = !is_kernel; // toggle on/off so every second circuit is intepreted as a kernel
+
+    //     ivc.accumulate(builder);
+
+    //     program_stack.pop_back();
+    // }
+    // *result = ivc.prove_and_verify();
+    // info("verified?: ", *result);
+
+    // Size of witnesses.msgpack: 316070
+    // binary form '0b1001101001010100110'
+    // Parse out to:
+    // >>> [0b00000000,
+    // ... 0b00000100,
+    // ... 0b11010010,
+    // ... 0b10100110]
+    // [0, 4, 210, 166]
+    // Printing the first four bytes of `in` in case of input witnesses.msgpack:
+    // serializing length: 0,4,210,166
+    // Conclusion: size if in[0] << 24 + in[1] << 16 + in[2] << 8 + in[3]
+
+    // const auto unpack = [](const uint8_t* in) {
+    //     std::vector<std::string> result;
+    //     info("first four bytes of buffer: \n",
+    //          static_cast<int>(in[0]),
+    //          "\n ",
+    //          static_cast<int>(in[1]),
+    //          "\n ",
+    //          static_cast<int>(in[2]),
+    //          "\n ",
+    //          static_cast<int>(in[3]));
+    //     const size_t in_size = (static_cast<size_t>(in[0]) << 24) + (static_cast<size_t>(in[1]) << 16) +
+    //                            (static_cast<size_t>(in[2]) << 8) + (static_cast<size_t>(in[3]) << 0);
+    //     info("in_size?: ", in_size);
+    //     // info("in: ", static_cast<int>(in));
+    //     // info("in + 4: ", static_cast<int>(in + 4));
+    //     msgpack::unpack((const char*)in + 4, in_size).get().convert(result);
+    //     info("unpacked");
+    //     return result;
+    // }; // getting 'multiple rules generate' cmake error. Adam's comments say I should just do this in the
+    //    // browser anyway?
+
+    const auto unpack = [](const uint8_t* in) {
+        std::vector<std::string> result;
+        info("first four bytes of buffer: \n",
+             static_cast<int>(in[0]),
+             "\n ",
+             static_cast<int>(in[1]),
+             "\n ",
+             static_cast<int>(in[2]),
+             "\n ",
+             static_cast<int>(in[3]));
+        const size_t in_size = (static_cast<size_t>(in[0]) << 24) + (static_cast<size_t>(in[1]) << 16) +
+                               (static_cast<size_t>(in[2]) << 8) + (static_cast<size_t>(in[3]) << 0);
+        info("in_size?: ", in_size);
+        // info("in: ", static_cast<int>(in));
+        // info("in + 4: ", static_cast<int>(in + 4));
+        msgpack::unpack((const char*)in + 4, in_size).get().convert(result);
+        info("unpacked");
+        return result;
+    }; // getting 'multiple rules generate' cmake error. Adam's comments say I should just do this in the
+       // browser anyway?
+
+    auto witnesses = gunzipVector(unpack(witnesses_msgpack_size_prepended));
+    auto acirs = gunzipVector(unpack(acirs_msgpack_size_prepended));
+    info(witnesses.size());
+    info(acirs.size());
+    std::vector<Program> folding_stack;
+    for (auto [bincode, wit] : zip_view(acirs, witnesses)) {
+        // TODO(#7371) there is a lot of copying going on in bincode, we should make sure this writes as a buffer in
+        // the future
+        std::vector<uint8_t> constraint_buf(bincode.begin(), bincode.end());
+        std::vector<uint8_t> witness_buf(wit.begin(), wit.end());
+
+        acir_format::AcirFormat constraints =
+            acir_format::circuit_buf_to_acir_format(constraint_buf, /*honk_recursion=*/false);
+        acir_format::WitnessVector witness = acir_format::witness_buf_to_witness_data(witness_buf);
+
+        folding_stack.push_back(Program{ constraints, witness });
+    }
+    // TODO(#7371) dedupe this with the rest of the similar code
+    // TODO(https://github.com/AztecProtocol/barretenberg/issues/1101): remove use of auto_verify_mode
+    ClientIVC ivc;
+    ivc.auto_verify_mode = true;
+    ivc.trace_structure = TraceStructure::E2E_FULL_TEST;
+
+    // Accumulate the entire program stack into the IVC
+    // TODO(https://github.com/AztecProtocol/barretenberg/issues/1116): remove manual setting of is_kernel once databus
+    // has been integrated into noir kernel programs
+    bool is_kernel = false;
+    for (Program& program : folding_stack) {
+        // Construct a bberg circuit from the acir representation then accumulate it into the IVC
+        auto circuit =
+            create_circuit<MegaCircuitBuilder>(program.constraints, 0, program.witness, false, ivc.goblin.op_queue);
+
+        // Set the internal is_kernel flag based on the local mechanism only if it has not already been set to true
+        if (!circuit.databus_propagation_data.is_kernel) {
+            circuit.databus_propagation_data.is_kernel = is_kernel;
+        }
+        is_kernel = !is_kernel;
+        ivc.accumulate(circuit);
+    }
+
+    auto proof = ivc.prove();
+    *result = false;
+}
+
 WASM_EXPORT void acir_prove_ultra_honk(uint8_t const* acir_vec, uint8_t const* witness_vec, uint8_t** out)
 {
     auto constraint_system =
@@ -259,6 +424,13 @@ WASM_EXPORT void acir_prove_ultra_honk(uint8_t const* acir_vec, uint8_t const* w
     UltraProver prover{ builder };
     auto proof = prover.construct_proof();
     *out = to_heap_buffer(to_buffer</*include_size=*/true>(proof));
+}
+
+WASM_EXPORT void acir_verify_aztec_client_proof(in_ptr acir_composer_ptr, uint8_t const* proof_buf, bool* result)
+{
+    (void)acir_composer_ptr;
+    (void)proof_buf;
+    *result = false; // WORKTODO: build verifier
 }
 
 WASM_EXPORT void acir_verify_ultra_honk(uint8_t const* proof_buf, uint8_t const* vk_buf, bool* result)
