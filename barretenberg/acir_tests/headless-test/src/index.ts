@@ -46,6 +46,9 @@ const readBytecodeFile = (path: string): Uint8Array => {
       Uint8Array.from(atob(encodedCircuit.bytecode), (c) => c.charCodeAt(0))
     );
     return decompressed;
+  } else if (extension == "msgpack") {
+    const read = fs.readFileSync(path);
+    return read;
   }
 
   const encodedCircuit = fs.readFileSync(path);
@@ -54,6 +57,12 @@ const readBytecodeFile = (path: string): Uint8Array => {
 };
 
 const readWitnessFile = (path: string): Uint8Array => {
+  const extension = path.substring(path.lastIndexOf(".") + 1);
+  if (extension == "msgpack") {
+    const read = fs.readFileSync(path);
+    return read;
+  }
+
   const buffer = fs.readFileSync(path);
   return gunzipSync(buffer);
 };
@@ -76,7 +85,7 @@ program
   .option(
     "-w, --witness-path <path>",
     "Specify the path to the gzip encoded ACIR witness",
-    "./target/witness.gz"
+    "./target/witnesses.msgpack"
   )
   .action(async ({ bytecodePath, witnessPath, recursive }) => {
     const acir = readBytecodeFile(bytecodePath);

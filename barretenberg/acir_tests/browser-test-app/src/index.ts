@@ -18,6 +18,7 @@ async function runTest(
   const { AztecClientBackend } = await import("@aztec/bb.js");
 
   debug("starting test...");
+  console.log(`input lengths after reading to Uint8Array's: ${acirs.length} and ${witnesses.length}`)
   const backend = new AztecClientBackend(acirs, { threads });
   const proof = await backend.generateProof(witnesses);
   console.log("generated proof");

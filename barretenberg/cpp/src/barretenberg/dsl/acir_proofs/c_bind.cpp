@@ -234,44 +234,57 @@ WASM_EXPORT void acir_serialize_verification_key_into_fields(in_ptr acir_compose
 //     return content;
 // }
 
-bool gunzipString(const std::string& compressed, std::string& decompressed)
+bool decompress_gzip(const std::string& compressed_data, std::string& decompressed_output)
 {
-    mz_ulong decompressed_size = compressed.size() * 4; // Initial guess for output size
-    decompressed.resize(decompressed_size);             // Allocate space for decompressed data
+    // Skip the first 10 bytes (standard gzip header length)
+    const unsigned char* compressed_data_ptr = reinterpret_cast<const unsigned char*>(compressed_data.data());
+    size_t compressed_data_size = compressed_data.size();
 
-    // Perform decompression using miniz
-    int status = mz_uncompress(reinterpret_cast<unsigned char*>(&decompressed[0]),        // Decompressed output
-                               &decompressed_size,                                        // Size of decompressed output
-                               reinterpret_cast<const unsigned char*>(compressed.data()), // Input compressed data
-                               compressed.size() // Size of input compressed data
-    );
-
-    // If the decompression fails, handle the error
-    if (status != MZ_OK) {
-        std::cerr << "Decompression failed with error: " << status << std::endl;
+    // Gzip header is 10 bytes
+    if (compressed_data_size <= 10) {
+        std::cerr << "Compressed data too small to be valid gzip" << std::endl;
         return false;
     }
 
-    // Resize the decompressed string to the actual decompressed size
-    decompressed.resize(decompressed_size);
+    // Pointer to actual compressed data (skip the gzip header)
+    compressed_data_ptr += 10;
+    compressed_data_size -= 10;
 
-    return true;
+    // Output buffer for decompressed data, estimated size
+    size_t decompressed_size = compressed_data_size * 5; // Adjust size as necessary
+    std::vector<unsigned char> decompressed_buffer(decompressed_size);
+
+    // Use tinfl_decompress_mem_to_mem from miniz for raw DEFLATE decompression
+    int status = tinfl_decompress_mem_to_mem(decompressed_buffer.data(),
+                                             decompressed_size,
+                                             compressed_data_ptr,
+                                             compressed_data_size,
+                                             TINFL_FLAG_PARSE_ZLIB_HEADER);
+
+    if (status == TINFL_STATUS_DONE) {
+        decompressed_output.assign(decompressed_buffer.begin(), decompressed_buffer.begin() + decompressed_size);
+        return true;
+    } else {
+        std::cerr << "Decompression failed with status: " << status << std::endl;
+        return false;
+    }
 }
 
-std::vector<std::string> gunzipVector(const std::vector<std::string>& compressedStrings)
+std::vector<std::string> decompress_all_gzips(const std::vector<std::string>& compressed_strings)
 {
-    std::vector<std::string> decompressedStrings;
+    std::vector<std::string> decompressed_strings;
 
-    for (const auto& compressed : compressedStrings) {
-        std::string decompressed;
-        if (gunzipString(compressed, decompressed)) {
-            decompressedStrings.push_back(decompressed);
+    // Decompress each compressed string in the vector
+    for (const auto& compressed_data : compressed_strings) {
+        std::string result;
+        if (decompress_gzip(compressed_data, result)) {
+            decompressed_strings.push_back(result);
         } else {
-            std::cerr << "Failed to decompress one of the strings." << std::endl;
+            info("Decompression failed");
         }
     }
 
-    return decompressedStrings;
+    return decompressed_strings;
 }
 
 WASM_EXPORT void acir_prove_aztec_client(uint8_t const* acirs_msgpack_size_prepended,
@@ -368,11 +381,20 @@ WASM_EXPORT void acir_prove_aztec_client(uint8_t const* acirs_msgpack_size_prepe
     }; // getting 'multiple rules generate' cmake error. Adam's comments say I should just do this in the
        // browser anyway?
 
-    auto witnesses = gunzipVector(unpack(witnesses_msgpack_size_prepended));
-    auto acirs = gunzipVector(unpack(acirs_msgpack_size_prepended));
+    auto unpacked_witnesses = unpack(witnesses_msgpack_size_prepended);
+    auto unpacked_acirs = unpack(acirs_msgpack_size_prepended);
+
+    info("type of unpacked_witnesses: ", typeid(unpacked_witnesses).name());
+    info("size of unpacked_witnesses: ", unpacked_witnesses.size());
+    info("type of unpacked_acirs: ", typeid(unpacked_acirs).name());
+    info("size of unpacked_acirs: ", unpacked_acirs.size());
+
+    auto witnesses = decompress_all_gzips(unpacked_witnesses);
+    auto acirs = decompress_all_gzips(unpacked_acirs);
     info(witnesses.size());
     info(acirs.size());
     std::vector<Program> folding_stack;
+
     for (auto [bincode, wit] : zip_view(acirs, witnesses)) {
         // TODO(#7371) there is a lot of copying going on in bincode, we should make sure this writes as a buffer in
         // the future
