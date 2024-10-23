@@ -5,16 +5,16 @@ import { ContractNotFoundError } from '@aztec/simulator';
 import { type PxeDatabase } from '../../database/pxe_database.js';
 
 /**
- * Inserts publicly delivered nullable fields into the note payload.
+ * Inserts publicly delivered values into the note payload.
  * @param db - PXE database used to fetch contract instance and artifact.
  * @param payload - Note payload to which nullable fields should be added.
- * @param nullableFields - List of nullable fields to be added to the note payload.
+ * @param publicValues - List of public values to be added to the note payload.
  * @returns Note payload with nullable fields added.
  */
-export async function addNullableFieldsToPayload(
+export async function addPublicValuesToPayload(
   db: PxeDatabase,
   payload: L1NotePayload,
-  nullableFields: Fr[],
+  publicValues: Fr[],
 ): Promise<L1NotePayload> {
   const instance = await db.getContractInstance(payload.contractAddress);
   if (!instance) {
@@ -47,10 +47,10 @@ export async function addNullableFieldsToPayload(
     if (noteField.nullable) {
       if (i == noteFields.length - 1) {
         // We are processing the last field so we simply insert the rest of the nullable fields at the end
-        modifiedNoteItems.push(...nullableFields.slice(indexInNullable));
+        modifiedNoteItems.push(...publicValues.slice(indexInNullable));
       } else {
         const noteFieldLength = noteFields[i + 1].index - noteField.index;
-        const nullableFieldsToInsert = nullableFields.slice(indexInNullable, indexInNullable + noteFieldLength);
+        const nullableFieldsToInsert = publicValues.slice(indexInNullable, indexInNullable + noteFieldLength);
         indexInNullable += noteFieldLength;
         // Now we insert the nullable fields at the note field index
         modifiedNoteItems.splice(noteField.index, 0, ...nullableFieldsToInsert);

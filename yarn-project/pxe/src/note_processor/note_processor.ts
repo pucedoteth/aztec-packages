@@ -3,6 +3,7 @@ import { type NoteProcessorStats } from '@aztec/circuit-types/stats';
 import { type CompleteAddress, INITIAL_L2_BLOCK_NUM, MAX_NOTE_HASHES_PER_TX, type PublicKey } from '@aztec/circuits.js';
 import { Fr } from '@aztec/foundation/fields';
 import { type Logger, createDebugLogger } from '@aztec/foundation/log';
+import { BufferReader } from '@aztec/foundation/serialize';
 import { Timer } from '@aztec/foundation/timer';
 import { type KeyStore } from '@aztec/key-store';
 import { type AcirSimulator } from '@aztec/simulator';
@@ -12,9 +13,8 @@ import { type IncomingNoteDao } from '../database/incoming_note_dao.js';
 import { type PxeDatabase } from '../database/index.js';
 import { type OutgoingNoteDao } from '../database/outgoing_note_dao.js';
 import { getAcirSimulator } from '../simulator/index.js';
+import { addPublicValuesToPayload } from './utils/add_public_values_to_payload.js';
 import { produceNoteDaos } from './utils/produce_note_daos.js';
-import { BufferReader } from '@aztec/foundation/serialize';
-import { addNullableFieldsToPayload } from './utils/add_nullable_field_to_payload.js';
 
 /**
  * Contains all the decrypted data in this array so that we can later batch insert it all into the database.
@@ -150,7 +150,7 @@ export class NoteProcessor {
         for (const txFunctionLogs of [encryptedTxFunctionLogs, unencryptedTxFunctionLogs]) {
           for (const functionLogs of txFunctionLogs) {
             for (const unprocessedLog of functionLogs.logs) {
-              const {publicValues, encryptedLog} = parseLog(unprocessedLog.data);
+              const { publicValues, encryptedLog } = parseLog(unprocessedLog.data);
               this.stats.seen++;
               const incomingNotePayload = L1NotePayload.decryptAsIncoming(encryptedLog, ivskM);
               const outgoingNotePayload = L1NotePayload.decryptAsOutgoing(encryptedLog, ovskM);
@@ -167,7 +167,7 @@ export class NoteProcessor {
                 let payload = incomingNotePayload || outgoingNotePayload;
 
                 if (publicValues.length > 0) {
-                  payload = await addNullableFieldsToPayload(this.db, payload!, publicValues);
+                  payload = await addPublicValuesToPayload(this.db, payload!, publicValues);
                 }
 
                 const txEffect = block.body.txEffects[indexOfTxInABlock];

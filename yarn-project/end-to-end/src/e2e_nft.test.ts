@@ -62,10 +62,7 @@ describe('NFT', () => {
     // the sender would be the AMM contract.
     const recipient = user2Wallet.getAddress();
 
-    const { debugInfo } = await nftContractAsUser1.methods
-      .transfer_to_private(recipient, TOKEN_ID)
-      .send()
-      .wait({ debug: true });
+    await nftContractAsUser1.methods.transfer_to_private(recipient, TOKEN_ID).send().wait();
 
     const publicOwnerAfter = await nftContractAsUser1.methods.owner_of(TOKEN_ID).simulate();
     expect(publicOwnerAfter).toEqual(AztecAddress.ZERO);
