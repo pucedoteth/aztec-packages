@@ -249,11 +249,8 @@ contract NFT {
         // Finalize the partial note with the `token_id`
         let finalization_payload = NFTNote::finalization_payload().new(context, note_transient_storage_slot, token_id);
 
-        // Emit final note hash
-        finalization_payload.emit_note_hash();
-
-        // Emit final log
-        finalization_payload.emit_log();
+        // At last we emit the note hash and the final log
+        finalization_payload.emit();
     }
 
     /**

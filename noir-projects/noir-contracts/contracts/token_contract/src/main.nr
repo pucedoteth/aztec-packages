@@ -538,7 +538,7 @@ contract Token {
             user_setup_log
         ).enqueue(&mut context);
 
-        // 7. Set the public teardown function to `complete_refund(...)`. Public teardown is the only time when a public
+        // 8. Set the public teardown function to `complete_refund(...)`. Public teardown is the only time when a public
         // function has access to the final transaction fee, which is needed to compute the actual refund amount.
         context.set_public_teardown_function(
             context.this_address(),
@@ -585,13 +585,9 @@ contract Token {
         let fee_payer_finalization_payload = TokenNote::finalization_payload().new(&mut context, fee_payer_slot, tx_fee);
         let user_finalization_payload = TokenNote::finalization_payload().new(&mut context, user_slot, refund_amount);
 
-        // 4. We emit the note hashes
-        fee_payer_finalization_payload.emit_note_hash();
-        user_finalization_payload.emit_note_hash();
-
-        // 5. At last we emit the note logs.
-        fee_payer_finalization_payload.emit_log();
-        user_finalization_payload.emit_log();
+        // 4. At last we emit the note hashes and the final note logs.
+        fee_payer_finalization_payload.emit();
+        user_finalization_payload.emit();
         // --> Once the tx is settled user and fee recipient can add the notes to their pixies.
     }
     // docs:end:complete_refund

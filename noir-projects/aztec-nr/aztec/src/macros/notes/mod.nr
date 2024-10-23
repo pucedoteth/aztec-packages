@@ -505,37 +505,70 @@ comptime fn get_setup_log_plaintext_body(
 /// Example:
 /// ```
 /// struct TokenNoteFinalizationPayload {
-///     log: [Field; 2],
-///     note_hash: Field
+///     context: &mut aztec::prelude::PublicContext,
+///     hiding_point_slot: Field,
+///     setup_log_slot: Field,
+///     public_values: [Field; 2]
 /// }
 ///
 /// impl TokenNoteFinalizationPayload {
-///     fn new(mut self, hiding_point: aztec::protocol_types::point::Point, amount: U128) -> TokenNoteFinalizationPayload {
-///         self.log = [amount.lo as Field, amount.hi as Field];
-///
-///         let finalization_hiding_point = std::embedded_curve_ops::multi_scalar_mul(
-///             [aztec::generators::Ga3, aztec::generators::Ga4],
-///             [
-///                 std::hash::from_field_unsafe(amount.lo),
-///                 std::hash::from_field_unsafe(amount.hi)
-///             ]
-///         ) + hiding_point;
-///
-///         self.note_hash = finalization_hiding_point.x;
+///     fn new(mut self, context: &mut aztec::prelude::PublicContext, slot: Field, amount: U128) -> TokenNoteFinalizationPayload {
+///         self.context = context;
+///         self.hiding_point_slot = slot;
+///         self.setup_log_slot = slot + aztec::protocol_types::point::POINT_LENGTH as Field;
+///         self.public_values = [amount.lo as Field, amount.hi as Field];
 ///         self
 ///     }
 ///
-///     fn get_log(self, context: &mut PublicContext, slot: Field) -> [u8; 513] {
-///         let setup_log_fields: [Field; 17] = context.storage_read(slot);
-///         let setup_log: [u8; 513] = aztec::utils::bytes::fields_to_bytes(setup_log_fields)
+///     fn emit(self) {
+///         self.emit_note_hash();
+///         self.emit_log();
+///     }
 ///
-///         // First byte should be zero as the number of public values is populated in public
-///         assert(setup_log[0] == 0, "Non-zero first byte");
+///     fn emit_note_hash(self) {
+///         let hiding_point: aztec::prelude::Point = self.context.storage_read(self.hiding_point_slot);
+///         assert(!aztec::protocol_types::traits::is_empty(hiding_point), "transfer not prepared");
+///
+///         let finalization_hiding_point = std::embedded_curve_ops::multi_scalar_mul([aztec::generators::Ga3, aztec::generators::Ga4], [std::hash::from_field_unsafe(self.public_values[0]), std::hash::from_field_unsafe(self.public_values[1])]) + hiding_point;
+///
+///         let note_hash = finalization_hiding_point.x;
+///
+///         self.context.push_note_hash(note_hash);
+///
+///         // We reset public storage to zero to achieve the effect of transient storage - kernels will squash
+///         // the writes
+///         // self.context.storage_write(self.hiding_point_slot, [0; aztec::protocol_types::point::POINT_LENGTH]);
+///     }
+///
+///     fn emit_log(self) {
+///         let setup_log_fields: [Field; 16] = self.context.storage_read(self.setup_log_slot);
+///
+///         let setup_log: [u8; 481] = aztec::utils::bytes::fields_to_bytes(setup_log_fields);
+///
+///         let mut finalization_log = [0; 513];
+///
+///         for i in 0..setup_log.len() {
+///             finalization_log[i] = setup_log[i];
+///         }
+///
+///         for i in 0..self.public_values.len() {
+///             let public_value_bytes: [u8; 32] = self.public_values[i].to_be_bytes();
+///             for j in 0..public_value_bytes.len() {
+///                 finalization_log[160 + i * 32 + j] = public_value_bytes[j];
+///             }
+///         }
+///
+///         self.context.emit_unencrypted_log(finalization_log);
+///
+///         // We reset public storage to zero to achieve the effect of transient storage - kernels will squash
+///         // the writes
+///         // self.context.storage_write(self.setup_log_slot, [0; 16]);
+///     }
 /// }
 ///
 /// impl aztec::protocol_types::traits::Empty for TokenNoteFinalizationPayload {
 ///     fn empty() -> Self {
-///         Self { log: [0; 2], note_hash: 0 }
+///         Self { context: &mut aztec::prelude::PublicContext::empty(), hiding_point_slot: 0, setup_log_slot: 0, public_values: [0, 0] }
 ///     }
 /// }
 /// ```
@@ -606,6 +639,11 @@ comptime fn generate_finalization_payload(
                 self.public_values = [$fields];
 
                 self
+            }
+
+            fn emit(self) {
+                self.emit_note_hash();
+                self.emit_log();
             }
 
             fn emit_note_hash(self) {
