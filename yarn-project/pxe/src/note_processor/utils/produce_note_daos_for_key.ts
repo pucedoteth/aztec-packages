@@ -55,25 +55,27 @@ export async function produceNoteDaosForKey<T>(
       (e as any).message.includes('failed to solve blackbox function: embedded_curve_add') ||
       (e as any).message.includes('Could not find key prefix.')
     ) {
-      // TODO(#8769): This branch is a temporary partial notes delivery solution that should be eventually replaced.
-      // Both error messages above occur only when we are dealing with a partial note and are thrown when calling
-      // `note.compute_note_hash()` or `note.compute_nullifier_without_context()`
-      // in `compute_note_hash_and_optionally_a_nullifier` function. It occurs with partial notes because in the
-      // partial flow we receive a note log of a note that is missing some fields here and then we try to compute
-      // the note hash with MSM while some of the fields are zeroed out (or get a nsk for zero npk_m_hash).
-      noteDao = await handlePartialNote(
-        simulator,
-        db,
-        pkM,
-        payload,
-        txHash,
-        noteHashes,
-        dataStartIndexForTx,
-        excludedIndices,
-        logger,
-        unencryptedLogs,
-        daoConstructor,
-      );
+      // // TODO(#8769): This branch is a temporary partial notes delivery solution that should be eventually replaced.
+      // // Both error messages above occur only when we are dealing with a partial note and are thrown when calling
+      // // `note.compute_note_hash()` or `note.compute_nullifier_without_context()`
+      // // in `compute_note_hash_and_optionally_a_nullifier` function. It occurs with partial notes because in the
+      // // partial flow we receive a note log of a note that is missing some fields here and then we try to compute
+      // // the note hash with MSM while some of the fields are zeroed out (or get a nsk for zero npk_m_hash).
+      // noteDao = await handlePartialNote(
+      //   simulator,
+      //   db,
+      //   pkM,
+      //   payload,
+      //   txHash,
+      //   noteHashes,
+      //   dataStartIndexForTx,
+      //   excludedIndices,
+      //   logger,
+      //   unencryptedLogs,
+      //   daoConstructor,
+      // );
+
+      console.log("skipping partial note");
     } else {
       logger.error(`Could not process note because of "${e}". Discarding note...`);
     }

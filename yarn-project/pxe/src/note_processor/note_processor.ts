@@ -14,6 +14,7 @@ import { type OutgoingNoteDao } from '../database/outgoing_note_dao.js';
 import { getAcirSimulator } from '../simulator/index.js';
 import { produceNoteDaos } from './utils/produce_note_daos.js';
 import { BufferReader } from '@aztec/foundation/serialize';
+import { addNullableFieldsToPayload } from './utils/add_nullable_field_to_payload.js';
 
 /**
  * Contains all the decrypted data in this array so that we can later batch insert it all into the database.
@@ -154,10 +155,6 @@ export class NoteProcessor {
               const incomingNotePayload = L1NotePayload.decryptAsIncoming(encryptedLog, ivskM);
               const outgoingNotePayload = L1NotePayload.decryptAsOutgoing(encryptedLog, ovskM);
 
-              if (incomingNotePayload) {
-                console.log("decrypted incoming", incomingNotePayload);
-              }
-
               if (incomingNotePayload || outgoingNotePayload) {
                 if (incomingNotePayload && outgoingNotePayload && !incomingNotePayload.equals(outgoingNotePayload)) {
                   throw new Error(
@@ -167,7 +164,11 @@ export class NoteProcessor {
                   );
                 }
 
-                const payload = incomingNotePayload || outgoingNotePayload;
+                let payload = incomingNotePayload || outgoingNotePayload;
+
+                if (publicValues.length > 0) {
+                  payload = await addNullableFieldsToPayload(this.db, payload!, publicValues);
+                }
 
                 const txEffect = block.body.txEffects[indexOfTxInABlock];
                 const { incomingNote, outgoingNote, incomingDeferredNote, outgoingDeferredNote } =
