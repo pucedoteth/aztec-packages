@@ -14,10 +14,15 @@ contract NFT {
         NoteGetterOptions, NoteViewerOptions, Map, PublicMutable, SharedImmutable, PrivateContext,
         PrivateSet, AztecAddress, PublicContext
     },
-        encrypted_logs::{encrypted_note_emission::{encode_and_encrypt_note, encrypt_and_emit_partial_log}},
+        encrypted_logs::{
+        encrypted_note_emission::{
+        encode_and_encrypt_note, encrypt_and_emit_partial_log, encrypt_and_emit_partial_log_and_return,
+        encrypt_partial_log
+    }
+    },
         keys::getters::get_public_keys, note::constants::MAX_NOTES_PER_PAGE,
         protocol_types::traits::is_empty, utils::comparison::Comparator,
-        protocol_types::{point::Point, traits::Serialize},
+        protocol_types::{point::Point, traits::Serialize}, utils::bytes::fields_to_bytes,
         macros::{storage::storage, events::event, functions::{private, public, view, internal, initializer}}
     };
     use dep::authwit::auth::{assert_current_call_valid_authwit, assert_current_call_valid_authwit_public, compute_authwit_nullifier};
@@ -199,15 +204,20 @@ contract NFT {
         // We don't need to perform a check that the value overwritten by `_store_point_in_transient_storage_unsafe`
         // is zero because the slot is the x-coordinate of the hiding point and hence we could only overwrite
         // the value in the slot with the same value. This makes usage of the `unsafe` method safe.
-        NFT::at(context.this_address())._store_point_in_transient_storage_unsafe(hiding_point_slot, note_setup_payload.hiding_point).enqueue(context);
+        NFT::at(context.this_address())._store_payload_in_transient_storage_unsafe(
+            hiding_point_slot,
+            note_setup_payload.hiding_point,
+            partial_log
+        ).enqueue(&mut context);
 
         hiding_point_slot
     }
 
     #[public]
     #[internal]
-    fn _store_point_in_transient_storage_unsafe(slot: Field, point: Point) {
+    fn _store_payload_in_transient_storage_unsafe(slot: Field, point: Point, partial_log: [Field; 16]) {
         context.storage_write(slot, point);
+        context.storage_write(slot + 3, partial_log);
     }
 
     /// Finalizes a transfer of NFT with `token_id` from public balance of `from` to a private balance of `to`.
@@ -255,6 +265,35 @@ contract NFT {
         // At last we reset public storage to zero to achieve the effect of transient storage - kernels will squash
         // the writes
         context.storage_write(hiding_point_slot, Point::empty());
+
+        // ############### HACKY NEW CODE TO BE POLISHED LATER ###############
+        let partial_log_fields: [Field; 16] = context.storage_read(hiding_point_slot + 3);
+        let partial_log: [u8; 481] = fields_to_bytes(partial_log_fields);
+
+        // First byte should be zero as the number of public values is populated in public
+        assert(partial_log[0] == 0, "Non-zero first byte");
+
+        // We append the public value to the log and emit it as unencrypted log
+        let mut log = [0; 513];
+
+        // Iterate over the partial log and copy it to the final log
+        for i in 1..partial_log.len() {
+            log[i] = partial_log[i];
+        }
+
+        // Now we populate the first byte with number of public values
+        log[0] = 1;
+
+        // Iterate over the finalization log and copy it to the final log
+        let finalization_log: [u8; 32] = finalization_payload.log[0].to_be_bytes();
+
+        for i in 0..finalization_log.len() {
+            log[481 + i] = finalization_log[i];
+        }
+
+        context.emit_unencrypted_log(log);
+
+        context.storage_write(hiding_point_slot + 3, [0; 16]);
     }
 
     /**
