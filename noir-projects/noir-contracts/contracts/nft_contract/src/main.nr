@@ -14,7 +14,7 @@ contract NFT {
         NoteGetterOptions, NoteViewerOptions, Map, PublicMutable, SharedImmutable, PrivateContext,
         PrivateSet, AztecAddress, PublicContext
     },
-        encrypted_logs::{encrypted_note_emission::{encode_and_encrypt_note, encrypt_and_emit_partial_log}},
+        encrypted_logs::encrypted_note_emission::encode_and_encrypt_note,
         keys::getters::get_public_keys, note::constants::MAX_NOTES_PER_PAGE,
         protocol_types::traits::is_empty, utils::comparison::Comparator,
         protocol_types::{point::Point, traits::Serialize}, utils::bytes::fields_to_bytes,
@@ -253,18 +253,18 @@ contract NFT {
         context.push_note_hash(finalization_payload.note_hash);
 
         // ############### HACKY NEW CODE TO BE POLISHED LATER ###############
-        let partial_log_fields: [Field; 16] = context.storage_read(hiding_point_slot + 3);
-        let partial_log: [u8; 481] = fields_to_bytes(partial_log_fields);
+        let setup_log_fields: [Field; 16] = context.storage_read(hiding_point_slot + 3);
+        let setup_log: [u8; 481] = fields_to_bytes(setup_log_fields);
 
         // First byte should be zero as the number of public values is populated in public
-        assert(partial_log[0] == 0, "Non-zero first byte");
+        assert(setup_log[0] == 0, "Non-zero first byte");
 
         // We append the public value to the log and emit it as unencrypted log
         let mut log = [0; 513];
 
         // Iterate over the partial log and copy it to the final log
-        for i in 1..partial_log.len() {
-            log[i] = partial_log[i];
+        for i in 1..setup_log.len() {
+            log[i] = setup_log[i];
         }
 
         // Now we populate the first byte with number of public values

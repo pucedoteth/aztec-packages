@@ -524,6 +524,13 @@ comptime fn get_setup_log_plaintext_body(
 ///         self.note_hash = finalization_hiding_point.x;
 ///         self
 ///     }
+///
+///     fn get_log(self, context: &mut PublicContext, slot: Field) -> [u8; 513] {
+///         let setup_log_fields: [Field; 17] = context.storage_read(slot);
+///         let setup_log: [u8; 513] = aztec::utils::bytes::fields_to_bytes(setup_log_fields)
+///
+///         // First byte should be zero as the number of public values is populated in public
+///         assert(setup_log[0] == 0, "Non-zero first byte");
 /// }
 ///
 /// impl aztec::protocol_types::traits::Empty for TokenNoteFinalizationPayload {
@@ -555,7 +562,7 @@ comptime fn generate_finalization_payload(
     };
 
     // We compute the log length and we concatenate the fields into a single quote.
-    let log_length = fields_list.len();
+    let public_values_length = fields_list.len();
     let fields = fields_list.join(quote {,});
 
     // Now we compute quotes relevant to the multi-scalar multiplication.
@@ -565,9 +572,18 @@ comptime fn generate_finalization_payload(
     let scalars = scalars_list.join(quote {,});
     let args = args_list.join(quote {,});
 
+    // Then we compute values for `encrypt_log(...)` function
+    let setup_log_plaintext_length = indexed_fixed_fields.len() * 32 + 64;
+    // 353 is a fixed ciphertext overhead as defined by `compute_encrypted_note_log`
+    let setup_log_byte_length = 353 + setup_log_plaintext_length;
+    // Each field contains 31 bytes so the length in fields is computed as ceil(setup_log_byte_length / 31)
+    // --> we achieve rouding by adding 30 and then dividing without remainder
+    let setup_log_field_length = (setup_log_byte_length + 30) / 31;
+    let finalization_log_byte_length = setup_log_byte_length + public_values_length * 32;
+
     (quote {
         struct $finalization_payload_name {
-            log: [Field; $log_length],
+            public_values: [Field; $public_values_length],
             note_hash: Field,
         }
 
@@ -587,9 +603,38 @@ comptime fn generate_finalization_payload(
             }
         }
 
+        fn get_log(self, context: &mut PublicContext, slot: Field) -> [u8; $finalization_log_byte_length] {
+            let setup_log_fields: [Field; $setup_log_field_length] = context.storage_read(slot);
+            let setup_log: [u8; $setup_log_byte_length] = aztec::utils::bytes::fields_to_bytes(setup_log_fields);
+
+            // First byte should be zero as the number of public values is populated in public
+            assert(setup_log[0] == 0, "Non-zero first byte");
+
+            // We append the public value to the log and emit it as unencrypted log
+            let mut finalization_log = [0; $finalization_log_byte_length];
+
+            // Iterate over the partial log and copy it to the final log
+            for i in 1..setup_log.len() {
+                finalization_log[i] = setup_log[i];
+            }
+
+            // Now we populate the first byte with number of public values
+            finalization_log[0] = 1;
+
+            // Iterate over the public values and append them to the log
+            for i in 0..$public_values_length {
+                let public_value_bytes: [u8; 32] = self.public_values[i].to_be_bytes();
+                for j in 0..public_value_bytes.len() {
+                    finalization_log[$setup_log_byte_length + i * 32 + j] = public_value_bytes[j];
+                }
+            }
+
+            finalization_log
+        }
+
         impl aztec::protocol_types::traits::Empty for $finalization_payload_name {
             fn empty() -> Self {
-                Self { log: [0; $log_length], note_hash: 0 }
+                Self { public_values: [0; $public_values_length], note_hash: 0 }
             }
         }
     }, finalization_payload_name)
