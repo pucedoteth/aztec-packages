@@ -124,23 +124,3 @@ pub fn encrypt_and_emit_partial_log<let P: u32>(
 
     context.emit_raw_note_log(note_hash_counter, encrypted_log, log_hash);
 }
-
-pub fn encrypt_partial_log<let P: u32, let N: u32>(
-    context: &mut PrivateContext,
-    log_plaintext: [u8; P],
-    recipient_keys: PublicKeys,
-    recipient: AztecAddress
-) -> [Field; N] {
-    let ovsk_app: Field  = context.request_ovsk_app(recipient_keys.ovpk_m.hash());
-
-    let encrypted_log_bytes: [u8; 353 + P] = compute_encrypted_note_log(
-        context.this_address(),
-        ovsk_app,
-        recipient_keys.ovpk_m,
-        recipient_keys.ivpk_m,
-        recipient,
-        log_plaintext
-    );
-
-    bytes_to_fields(encrypted_log_bytes)
-}

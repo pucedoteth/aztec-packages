@@ -14,7 +14,7 @@ contract NFT {
         NoteGetterOptions, NoteViewerOptions, Map, PublicMutable, SharedImmutable, PrivateContext,
         PrivateSet, AztecAddress, PublicContext
     },
-        encrypted_logs::{encrypted_note_emission::{encode_and_encrypt_note, encrypt_and_emit_partial_log, encrypt_partial_log}},
+        encrypted_logs::{encrypted_note_emission::{encode_and_encrypt_note, encrypt_and_emit_partial_log}},
         keys::getters::get_public_keys, note::constants::MAX_NOTES_PER_PAGE,
         protocol_types::traits::is_empty, utils::comparison::Comparator,
         protocol_types::{point::Point, traits::Serialize}, utils::bytes::fields_to_bytes,
@@ -180,10 +180,8 @@ contract NFT {
         };
         let note_setup_payload = NFTNote::setup_payload().new(to_npk_m_hash, note_randomness, to_note_slot);
 
-        // We encrypt the partial note log
-        // Note: setup payload plaintext is 2*32+64 = 128, the full log is 128 + 353 = 481, each field can contain
-        // 31 bytes so we need 16 fields
-        let partial_log: [Field; 16] = encrypt_partial_log(&mut context, note_setup_payload.log_plaintext, to_keys, to);
+        // We encrypt the note log
+        let note_log = note_setup_payload.encrypt_log(&mut context, to_keys, to);
 
         // Using the x-coordinate as a hiding point slot is safe against someone else interfering with it because
         // we have a guarantee that the public functions of the transaction are executed right after the private ones
@@ -204,17 +202,19 @@ contract NFT {
         NFT::at(context.this_address())._store_payload_in_transient_storage_unsafe(
             hiding_point_slot,
             note_setup_payload.hiding_point,
-            partial_log
+            note_log
         ).enqueue(&mut context);
 
         hiding_point_slot
     }
 
+    // Note: Having to define the note log length here is very unfortunate as it's impossible for users to derive.
+    // TODO(benesjan): handle this somehow
     #[public]
     #[internal]
-    fn _store_payload_in_transient_storage_unsafe(slot: Field, point: Point, partial_log: [Field; 16]) {
+    fn _store_payload_in_transient_storage_unsafe(slot: Field, point: Point, note_log: [Field; 16]) {
         context.storage_write(slot, point);
-        context.storage_write(slot + 3, partial_log);
+        context.storage_write(slot + 3, note_log);
     }
 
     /// Finalizes a transfer of NFT with `token_id` from public balance of `from` to a private balance of `to`.

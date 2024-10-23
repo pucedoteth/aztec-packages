@@ -360,7 +360,19 @@ comptime fn generate_multi_scalar_mul(indexed_fields: [(Quoted, Type, u32)]) -> 
 ///             hiding_point
 ///         }
 ///     }
-/// }
+///
+///     fn encrypt_log(self, context: &mut PrivateContext, recipient_keys: PublicKeys, recipient: AztecAddress) -> [Field; 17] {
+///         let encrypted_log_bytes: [u8; 513] = crate::encrypted_logs::encrypted_note_emission::encrypt_partial_log(
+///             context.this_address(),
+///             ovsk_app,
+///             recipient_keys.ovpk_m,
+///             recipient_keys.ivpk_m,
+///             recipient,
+///             log_plaintext
+///         );
+///
+///         bytes_to_fields(encrypted_log_bytes)
+///     }
 ///
 /// impl aztec::protocol_types::traits::Empty for TokenNoteSetupPayload {
 ///     fn empty() -> Self {
@@ -386,6 +398,13 @@ comptime fn generate_setup_payload(
     let log_plaintext_length = indexed_fixed_fields.len() * 32 + 64;
     let setup_log_plaintext = get_setup_log_plaintext_body(s, log_plaintext_length, indexed_nullable_fields);
 
+    // Then we compute values for `encrypt_log(...)` function
+    // 353 is a fixed ciphertext overhead as defined by `compute_encrypted_note_log`
+    let encrypted_log_byte_length = 353 + log_plaintext_length;
+    // Each field contains 31 bytes so the length in fields is computed as ceil(encrypted_log_byte_length / 31)
+    // --> we achieve rouding by adding 30 and then dividing without remainder
+    let encrypted_log_field_length = (encrypted_log_byte_length + 30) / 31;
+
     (quote {
         struct $setup_payload_name {
             log_plaintext: [u8; $log_plaintext_length],
@@ -405,6 +424,21 @@ comptime fn generate_setup_payload(
                     log_plaintext,
                     hiding_point
                 }
+            }
+
+            fn encrypt_log(self, context: &mut PrivateContext, recipient_keys: aztec::protocol_types::public_keys::PublicKeys, recipient: aztec::protocol_types::address::AztecAddress) -> [Field; $encrypted_log_field_length] {
+                let ovsk_app: Field  = context.request_ovsk_app(recipient_keys.ovpk_m.hash());
+
+                let encrypted_log_bytes: [u8; $encrypted_log_byte_length] = aztec::encrypted_logs::payload::compute_encrypted_note_log(
+                    context.this_address(),
+                    ovsk_app,
+                    recipient_keys.ovpk_m,
+                    recipient_keys.ivpk_m,
+                    recipient,
+                    self.log_plaintext
+                );
+
+                aztec::utils::bytes::bytes_to_fields(encrypted_log_bytes)
             }
         }
 
