@@ -181,7 +181,7 @@ contract NFT {
         let note_setup_payload = NFTNote::setup_payload().new(to_npk_m_hash, note_randomness, to_note_slot);
 
         // We encrypt the note log
-        let note_log = note_setup_payload.encrypt_log(&mut context, to_keys, to);
+        let note_log = note_setup_payload.encrypt_log(context, to_keys, to);
 
         // Using the x-coordinate as a hiding point slot is safe against someone else interfering with it because
         // we have a guarantee that the public functions of the transaction are executed right after the private ones
@@ -199,7 +199,7 @@ contract NFT {
         // We don't need to perform a check that the value overwritten by `_store_point_in_transient_storage_unsafe`
         // is zero because the slot is the x-coordinate of the hiding point and hence we could only overwrite
         // the value in the slot with the same value. This makes usage of the `unsafe` method safe.
-        NFT::at(context.this_address())._store_payload_in_transient_storage_unsafe(hiding_point_slot, note_setup_payload.hiding_point, note_log).enqueue(&mut context);
+        NFT::at(context.this_address())._store_payload_in_transient_storage_unsafe(hiding_point_slot, note_setup_payload.hiding_point, note_log).enqueue(context);
 
         hiding_point_slot
     }
@@ -253,10 +253,11 @@ contract NFT {
         context.push_note_hash(finalization_payload.note_hash);
 
         // Iterate over the finalization log and copy it to the final log
-        let finalization_log = finalization_payload.get_log(context, hiding_point_slot + 3);
+        finalization_payload.emit_log(context, hiding_point_slot + 3);
 
-        // We emit the finalization log via the unencrypted logs stream
-        context.emit_unencrypted_log(finalization_log);
+        // We reset public storage to zero to achieve the effect of transient storage - kernels will squash
+        // the writes
+        context.storage_write(hiding_point_slot, [0; 3]);
     }
 
     /**

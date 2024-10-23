@@ -602,8 +602,11 @@ comptime fn generate_finalization_payload(
                 self
             }
 
-            fn get_log(self, context: &mut aztec::prelude::PublicContext, slot: Field) -> [u8; $finalization_log_byte_length] {
+            fn emit_log(self, context: &mut aztec::prelude::PublicContext, slot: Field) {
+                // We load the setup log from storage
                 let setup_log_fields: [Field; $setup_log_field_length] = context.storage_read(slot);
+
+                // We convert the lof from fields to bytes
                 let setup_log: [u8; $setup_log_byte_length] = aztec::utils::bytes::fields_to_bytes(setup_log_fields);
 
                 // First byte should be zero as the number of public values is populated in public
@@ -628,11 +631,12 @@ comptime fn generate_finalization_payload(
                     }
                 }
 
+                // We emit the finalization log via the unencrypted logs stream
+                context.emit_unencrypted_log(finalization_log);
+
                 // We reset public storage to zero to achieve the effect of transient storage - kernels will squash
                 // the writes
                 context.storage_write(slot, [0; $setup_log_field_length]);
-
-                finalization_log
             }
         }
 
