@@ -571,7 +571,7 @@ comptime fn generate_finalization_payload(
     // We generate scalars_list manually as we need it to refer self.public_values
     let mut scalars_list: [Quoted] = &[];
     for i in 0..public_values_length {
-        scalars_list = scalars_list.push_back(quote { self.public_values[$i] });
+        scalars_list = scalars_list.push_back(quote { std::hash::from_field_unsafe(self.public_values[$i]) });
     }
 
     let generators = generators_list.join(quote {,});
@@ -668,7 +668,7 @@ comptime fn generate_finalization_payload(
 
         impl aztec::protocol_types::traits::Empty for $finalization_payload_name {
             fn empty() -> Self {
-                Self { public_values: [0; $public_values_length], note_hash: 0 }
+                Self { context: &mut aztec::prelude::PublicContext::empty(), public_values: [0; $public_values_length], hiding_point_slot: 0, setup_log_slot: 0 }
             }
         }
     }, finalization_payload_name)

@@ -181,7 +181,7 @@ contract NFT {
         let note_setup_payload = NFTNote::setup_payload().new(to_npk_m_hash, note_randomness, to_note_slot);
 
         // We encrypt the note log
-        let note_log = note_setup_payload.encrypt_log(context, to_keys, to);
+        let setup_log = note_setup_payload.encrypt_log(context, to_keys, to);
 
         // Using the x-coordinate as a hiding point slot is safe against someone else interfering with it because
         // we have a guarantee that the public functions of the transaction are executed right after the private ones
@@ -199,18 +199,22 @@ contract NFT {
         // We don't need to perform a check that the value overwritten by `_store_point_in_transient_storage_unsafe`
         // is zero because the slot is the x-coordinate of the hiding point and hence we could only overwrite
         // the value in the slot with the same value. This makes usage of the `unsafe` method safe.
-        NFT::at(context.this_address())._store_payload_in_transient_storage_unsafe(hiding_point_slot, note_setup_payload.hiding_point, note_log).enqueue(context);
+        NFT::at(context.this_address())._store_payload_in_transient_storage_unsafe(hiding_point_slot, note_setup_payload.hiding_point, setup_log).enqueue(context);
 
         hiding_point_slot
     }
 
-    // Note: Having to define the note log length here is very unfortunate as it's impossible for users to derive.
-    // TODO(benesjan): handle this somehow
+    // TODO(#9375): Having to define the note log length here is very unfortunate as it's basically impossible for users
+    // to derive manually. This will however go away once we have a real transient storage. We cannot use generics here
+    // as it is an entrypoint function.
     #[public]
     #[internal]
-    fn _store_payload_in_transient_storage_unsafe(slot: Field, point: Point, note_log: [Field; 16]) {
+    fn _store_payload_in_transient_storage_unsafe(slot: Field, point: Point, setup_log: [Field; 16]) {
         context.storage_write(slot, point);
-        context.storage_write(slot + 3, note_log);
+        context.storage_write(
+            slot + aztec::protocol_types::point::POINT_LENGTH as Field,
+            setup_log
+        );
     }
 
     /// Finalizes a transfer of NFT with `token_id` from public balance of `from` to a private balance of `to`.
