@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.60.0](https://github.com/AztecProtocol/aztec-packages/compare/barretenberg.js-v0.59.0...barretenberg.js-v0.60.0) (2024-10-23)
+
+
+### Miscellaneous
+
+* Remove noir_js_backend_barretenberg ([#9338](https://github.com/AztecProtocol/aztec-packages/issues/9338)) ([cefe3d9](https://github.com/AztecProtocol/aztec-packages/commit/cefe3d901731d3b05de503ce93c97a3badf91363))
+
 ## [0.59.0](https://github.com/AztecProtocol/aztec-packages/compare/barretenberg.js-v0.58.0...barretenberg.js-v0.59.0) (2024-10-21)
 
 

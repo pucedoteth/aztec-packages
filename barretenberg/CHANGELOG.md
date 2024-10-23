@@ -1,5 +1,33 @@
 # Changelog
 
+## [0.60.0](https://github.com/AztecProtocol/aztec-packages/compare/barretenberg-v0.59.0...barretenberg-v0.60.0) (2024-10-23)
+
+
+### ⚠ BREAKING CHANGES
+
+* remove hash opcodes from AVM ([#9209](https://github.com/AztecProtocol/aztec-packages/issues/9209))
+* remove delegate call and storage address ([#9330](https://github.com/AztecProtocol/aztec-packages/issues/9330))
+
+### Features
+
+* **avm:** Full poseidon2 ([#9141](https://github.com/AztecProtocol/aztec-packages/issues/9141)) ([eae7587](https://github.com/AztecProtocol/aztec-packages/commit/eae75872fdd813ed07f70c1e5d41c7b9f399ab72))
+* Remove hash opcodes from AVM ([#9209](https://github.com/AztecProtocol/aztec-packages/issues/9209)) ([e6db535](https://github.com/AztecProtocol/aztec-packages/commit/e6db535b69e6769fa3f2c85a0685640c92ac147b)), closes [#9208](https://github.com/AztecProtocol/aztec-packages/issues/9208)
+* Translator on Shplemini ([#9329](https://github.com/AztecProtocol/aztec-packages/issues/9329)) ([21fa3cf](https://github.com/AztecProtocol/aztec-packages/commit/21fa3cf054cf1a3652c8a27ddf042c1c48b47039))
+
+
+### Bug Fixes
+
+* **avm:** Public dispatch in proving tests ([#9331](https://github.com/AztecProtocol/aztec-packages/issues/9331)) ([42e5221](https://github.com/AztecProtocol/aztec-packages/commit/42e5221dda3fc28dc7fcce3607af756132b4e314))
+* Barretenberg readme scare warning ([#9313](https://github.com/AztecProtocol/aztec-packages/issues/9313)) ([f759d55](https://github.com/AztecProtocol/aztec-packages/commit/f759d55d956fc0133ddec0db284de12b552b4c89))
+
+
+### Miscellaneous
+
+* **avm:** Some cleaning in avm prover ([#9311](https://github.com/AztecProtocol/aztec-packages/issues/9311)) ([523aa23](https://github.com/AztecProtocol/aztec-packages/commit/523aa231acd22228fa6414fc8241cebdfa21eafa))
+* Copying world state binary to yarn project is on generate ([#9194](https://github.com/AztecProtocol/aztec-packages/issues/9194)) ([8d75dd4](https://github.com/AztecProtocol/aztec-packages/commit/8d75dd4a6730c1af27b23bc786ed9db8eb199e6f))
+* Remove delegate call and storage address ([#9330](https://github.com/AztecProtocol/aztec-packages/issues/9330)) ([465f88e](https://github.com/AztecProtocol/aztec-packages/commit/465f88e9e89ac7af2ec8d4b061722dc3b776301e))
+* Remove noir_js_backend_barretenberg ([#9338](https://github.com/AztecProtocol/aztec-packages/issues/9338)) ([cefe3d9](https://github.com/AztecProtocol/aztec-packages/commit/cefe3d901731d3b05de503ce93c97a3badf91363))
+
 ## [0.59.0](https://github.com/AztecProtocol/aztec-packages/compare/barretenberg-v0.58.0...barretenberg-v0.59.0) (2024-10-21)
 
 
