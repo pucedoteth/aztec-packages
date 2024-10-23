@@ -625,7 +625,8 @@ comptime fn generate_finalization_payload(
 
                 // We reset public storage to zero to achieve the effect of transient storage - kernels will squash
                 // the writes
-                self.context.storage_write(self.hiding_point_slot, [0; aztec::protocol_types::point::POINT_LENGTH]);
+                // TODO(#9376): Uncomment the following line.
+                // self.context.storage_write(self.hiding_point_slot, [0; aztec::protocol_types::point::POINT_LENGTH]);
             }
 
             fn emit_log(self) {
@@ -662,7 +663,8 @@ comptime fn generate_finalization_payload(
 
                 // We reset public storage to zero to achieve the effect of transient storage - kernels will squash
                 // the writes
-                self.context.storage_write(self.setup_log_slot, [0; $setup_log_field_length]);
+                // TODO(#9376): Uncomment the following line.
+                // self.context.storage_write(self.setup_log_slot, [0; $setup_log_field_length]);
             }
         }
 
