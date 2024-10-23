@@ -583,14 +583,29 @@ comptime fn generate_finalization_payload(
 
     (quote {
         struct $finalization_payload_name {
+            context: &mut aztec::prelude::PublicContext
+            hiding_point_slot: Field,
+            setup_log_slot: Field,
             public_values: [Field; $public_values_length],
-            note_hash: Field,
         }
 
         impl $finalization_payload_name {
-            fn new(mut self, hiding_point: aztec::protocol_types::point::Point, $args) -> $finalization_payload_name {
+            fn new(mut self, context: &mut aztec::prelude::PublicContext, slot: Field, $args) -> $finalization_payload_name {
+                self.context = context;
+
+                self.hiding_point_slot = slot;
+                self.setup_log_slot = slot + aztec::protocol_types::point::POINT_LENGTH;
+
                 $aux_vars_for_serialization
                 self.public_values = [$fields];
+
+                self
+            }
+
+            fn emit_note_hash(self) {
+                // Read the hiding point from "transient" storage and check it's not empty to ensure the transfer was prepared
+                let hiding_point: Point = self.context.storage_read(self.hiding_point_slot);
+                assert(!is_empty(hiding_point), "transfer not prepared");
 
                 $msm_aux_vars
                 let finalization_hiding_point = std::embedded_curve_ops::multi_scalar_mul(
@@ -598,13 +613,18 @@ comptime fn generate_finalization_payload(
                     [$scalars]
                 ) + hiding_point;
 
-                self.note_hash = finalization_hiding_point.x;
-                self
+                let note_hash = finalization_hiding_point.x;
+
+                self.context.push_note_hash(note_hash);
+
+                // We reset public storage to zero to achieve the effect of transient storage - kernels will squash
+                // the writes
+                self.context.storage_write(self.hiding_point_slot, [0; aztec::protocol_types::point::POINT_LENGTH]);
             }
 
-            fn emit_log(self, context: &mut aztec::prelude::PublicContext, slot: Field) {
+            fn emit_log(self) {
                 // We load the setup log from storage
-                let setup_log_fields: [Field; $setup_log_field_length] = context.storage_read(slot);
+                let setup_log_fields: [Field; $setup_log_field_length] = self.context.storage_read(self.setup_log_slot);
 
                 // We convert the lof from fields to bytes
                 let setup_log: [u8; $setup_log_byte_length] = aztec::utils::bytes::fields_to_bytes(setup_log_fields);
@@ -632,11 +652,11 @@ comptime fn generate_finalization_payload(
                 }
 
                 // We emit the finalization log via the unencrypted logs stream
-                context.emit_unencrypted_log(finalization_log);
+                self.context.emit_unencrypted_log(finalization_log);
 
                 // We reset public storage to zero to achieve the effect of transient storage - kernels will squash
                 // the writes
-                context.storage_write(slot, [0; $setup_log_field_length]);
+                self.context.storage_write(self.setup_log_slot, [0; $setup_log_field_length]);
             }
         }
 

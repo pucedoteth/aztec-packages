@@ -232,32 +232,24 @@ contract NFT {
     fn _finalize_transfer_to_private(
         from: AztecAddress,
         token_id: Field,
-        hiding_point_slot: Field,
+        note_transient_storage_slot: Field,
         context: &mut PublicContext,
         storage: Storage<&mut PublicContext>
     ) {
         let public_owners_storage = storage.public_owners.at(token_id);
         assert(public_owners_storage.read().eq(from), "invalid NFT owner");
 
-        // Read the hiding point from "transient" storage and check it's not empty to ensure the transfer was prepared
-        let hiding_point: Point = context.storage_read(hiding_point_slot);
-        assert(!is_empty(hiding_point), "transfer not prepared");
-
         // Set the public NFT owner to zero
         public_owners_storage.write(AztecAddress::zero());
 
         // Finalize the partial note with the `token_id`
-        let finalization_payload = NFTNote::finalization_payload().new(hiding_point, token_id);
+        let finalization_payload = NFTNote::finalization_payload().new(context, note_transient_storage_slot, token_id);
 
-        // We insert the finalization note hash
-        context.push_note_hash(finalization_payload.note_hash);
+        // Emit final note hash
+        finalization_payload.emit_note_hash();
 
-        // Iterate over the finalization log and copy it to the final log
-        finalization_payload.emit_log(context, hiding_point_slot + 3);
-
-        // We reset public storage to zero to achieve the effect of transient storage - kernels will squash
-        // the writes
-        context.storage_write(hiding_point_slot, [0; 3]);
+        // Emit final log
+        finalization_payload.emit_log(context);
     }
 
     /**
