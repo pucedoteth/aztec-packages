@@ -16,8 +16,8 @@ contract NFT {
     },
         encrypted_logs::encrypted_note_emission::encode_and_encrypt_note,
         keys::getters::get_public_keys, note::constants::MAX_NOTES_PER_PAGE,
-        utils::comparison::Comparator,
-        protocol_types::{point::Point, traits::Serialize}, utils::bytes::fields_to_bytes,
+        utils::comparison::Comparator, protocol_types::{point::Point, traits::Serialize},
+        utils::bytes::fields_to_bytes,
         macros::{storage::storage, events::event, functions::{private, public, view, internal, initializer}}
     };
     use dep::authwit::auth::{assert_current_call_valid_authwit, assert_current_call_valid_authwit_public, compute_authwit_nullifier};

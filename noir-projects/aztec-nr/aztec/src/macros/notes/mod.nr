@@ -566,7 +566,13 @@ comptime fn generate_finalization_payload(
     let fields = fields_list.join(quote {,});
 
     // Now we compute quotes relevant to the multi-scalar multiplication.
-    let (generators_list, scalars_list, args_list, msm_aux_vars) = generate_multi_scalar_mul(indexed_nullable_fields);
+    let (generators_list, _, args_list, msm_aux_vars) = generate_multi_scalar_mul(indexed_nullable_fields);
+
+    // We generate scalars_list manually as we need it to refer self.public_values
+    let mut scalars_list: [Quoted] = &[];
+    for i in 0..public_values_length {
+        scalars_list = scalars_list.push_back(quote { self.public_values[$i] });
+    }
 
     let generators = generators_list.join(quote {,});
     let scalars = scalars_list.join(quote {,});
