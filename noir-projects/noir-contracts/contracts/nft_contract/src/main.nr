@@ -199,11 +199,7 @@ contract NFT {
         // We don't need to perform a check that the value overwritten by `_store_point_in_transient_storage_unsafe`
         // is zero because the slot is the x-coordinate of the hiding point and hence we could only overwrite
         // the value in the slot with the same value. This makes usage of the `unsafe` method safe.
-        NFT::at(context.this_address())._store_payload_in_transient_storage_unsafe(
-            hiding_point_slot,
-            note_setup_payload.hiding_point,
-            note_log
-        ).enqueue(&mut context);
+        NFT::at(context.this_address())._store_payload_in_transient_storage_unsafe(hiding_point_slot, note_setup_payload.hiding_point, note_log).enqueue(&mut context);
 
         hiding_point_slot
     }

@@ -361,17 +361,19 @@ comptime fn generate_multi_scalar_mul(indexed_fields: [(Quoted, Type, u32)]) -> 
 ///         }
 ///     }
 ///
-///     fn encrypt_log(self, context: &mut PrivateContext, recipient_keys: PublicKeys, recipient: AztecAddress) -> [Field; 17] {
-///         let encrypted_log_bytes: [u8; 513] = crate::encrypted_logs::encrypted_note_emission::encrypt_partial_log(
+///     fn encrypt_log(self, context: &mut PrivateContext, recipient_keys: aztec::protocol_types::public_keys::PublicKeys, recipient: aztec::protocol_types::address::AztecAddress) -> [Field; 17] {
+///         let ovsk_app: Field  = context.request_ovsk_app(recipient_keys.ovpk_m.hash());
+///
+///         let encrypted_log_bytes: [u8; 513] = aztec::encrypted_logs::payload::compute_encrypted_note_log(
 ///             context.this_address(),
 ///             ovsk_app,
 ///             recipient_keys.ovpk_m,
 ///             recipient_keys.ivpk_m,
 ///             recipient,
-///             log_plaintext
+///             self.log_plaintext
 ///         );
 ///
-///         bytes_to_fields(encrypted_log_bytes)
+///         aztec::utils::bytes::bytes_to_fields(encrypted_log_bytes)
 ///     }
 ///
 /// impl aztec::protocol_types::traits::Empty for TokenNoteSetupPayload {
