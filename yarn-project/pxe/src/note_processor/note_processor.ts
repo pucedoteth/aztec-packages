@@ -324,7 +324,7 @@ export class NoteProcessor {
         dataStartIndexForTx,
         unencryptedLogs,
       } = deferredNote;
-      const payload = new L1NotePayload(note, contractAddress, storageSlot, noteTypeId, []);
+      const payload = new L1NotePayload(note, contractAddress, storageSlot, noteTypeId);
 
       const isIncoming = publicKey.equals(this.ivpkM);
       const isOutgoing = publicKey.equals(this.ovpkM);
