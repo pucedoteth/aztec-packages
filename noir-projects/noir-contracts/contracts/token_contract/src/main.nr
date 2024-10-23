@@ -560,8 +560,8 @@ contract Token {
 
         // 4. We emit the `tx_fee` and `refund_amount` as unencrypted event such that the `NoteProcessor` can use it
         // to reconstruct the note.
-        context.emit_unencrypted_log(fee_payer_finalization_payload.log);
-        context.emit_unencrypted_log(user_finalization_payload.log);
+        context.emit_unencrypted_log(fee_payer_finalization_payload.public_values);
+        context.emit_unencrypted_log(user_finalization_payload.public_values);
 
         // 5. At last we emit the note hashes.
         context.push_note_hash(fee_payer_finalization_payload.note_hash);

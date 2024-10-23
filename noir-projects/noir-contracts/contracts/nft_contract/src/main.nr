@@ -252,38 +252,11 @@ contract NFT {
         // We insert the finalization note hash
         context.push_note_hash(finalization_payload.note_hash);
 
-        // ############### HACKY NEW CODE TO BE POLISHED LATER ###############
-        let setup_log_fields: [Field; 16] = context.storage_read(hiding_point_slot + 3);
-        let setup_log: [u8; 481] = fields_to_bytes(setup_log_fields);
-
-        // First byte should be zero as the number of public values is populated in public
-        assert(setup_log[0] == 0, "Non-zero first byte");
-
-        // We append the public value to the log and emit it as unencrypted log
-        let mut log = [0; 513];
-
-        // Iterate over the partial log and copy it to the final log
-        for i in 1..setup_log.len() {
-            log[i] = setup_log[i];
-        }
-
-        // Now we populate the first byte with number of public values
-        log[0] = 1;
-
         // Iterate over the finalization log and copy it to the final log
-        let finalization_log: [u8; 32] = finalization_payload.log[0].to_be_bytes();
+        let finalization_log = finalization_payload.get_log(context, hiding_point_slot + 3);
 
-        for i in 0..finalization_log.len() {
-            log[481 + i] = finalization_log[i];
-        }
-
-        // We emit the `token_id` as unencrypted event such that the `NoteProcessor` can use it to reconstruct the note
-        context.emit_unencrypted_log(log);
-
-        // At last we reset public storage to zero to achieve the effect of transient storage - kernels will squash
-        // the writes
-        context.storage_write(hiding_point_slot, Point::empty());
-        context.storage_write(hiding_point_slot + 3, [0; 16]);
+        // We emit the finalization log via the unencrypted logs stream
+        context.emit_unencrypted_log(finalization_log);
     }
 
     /**

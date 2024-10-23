@@ -590,7 +590,7 @@ comptime fn generate_finalization_payload(
         impl $finalization_payload_name {
             fn new(mut self, hiding_point: aztec::protocol_types::point::Point, $args) -> $finalization_payload_name {
                 $aux_vars_for_serialization
-                self.log = [$fields];
+                self.public_values = [$fields];
 
                 $msm_aux_vars
                 let finalization_hiding_point = std::embedded_curve_ops::multi_scalar_mul(
@@ -601,35 +601,39 @@ comptime fn generate_finalization_payload(
                 self.note_hash = finalization_hiding_point.x;
                 self
             }
-        }
 
-        fn get_log(self, context: &mut PublicContext, slot: Field) -> [u8; $finalization_log_byte_length] {
-            let setup_log_fields: [Field; $setup_log_field_length] = context.storage_read(slot);
-            let setup_log: [u8; $setup_log_byte_length] = aztec::utils::bytes::fields_to_bytes(setup_log_fields);
+            fn get_log(self, context: &mut aztec::prelude::PublicContext, slot: Field) -> [u8; $finalization_log_byte_length] {
+                let setup_log_fields: [Field; $setup_log_field_length] = context.storage_read(slot);
+                let setup_log: [u8; $setup_log_byte_length] = aztec::utils::bytes::fields_to_bytes(setup_log_fields);
 
-            // First byte should be zero as the number of public values is populated in public
-            assert(setup_log[0] == 0, "Non-zero first byte");
+                // First byte should be zero as the number of public values is populated in public
+                assert(setup_log[0] == 0, "Non-zero first byte");
 
-            // We append the public value to the log and emit it as unencrypted log
-            let mut finalization_log = [0; $finalization_log_byte_length];
+                // We append the public value to the log and emit it as unencrypted log
+                let mut finalization_log = [0; $finalization_log_byte_length];
 
-            // Iterate over the partial log and copy it to the final log
-            for i in 1..setup_log.len() {
-                finalization_log[i] = setup_log[i];
-            }
-
-            // Now we populate the first byte with number of public values
-            finalization_log[0] = 1;
-
-            // Iterate over the public values and append them to the log
-            for i in 0..$public_values_length {
-                let public_value_bytes: [u8; 32] = self.public_values[i].to_be_bytes();
-                for j in 0..public_value_bytes.len() {
-                    finalization_log[$setup_log_byte_length + i * 32 + j] = public_value_bytes[j];
+                // Iterate over the partial log and copy it to the final log
+                for i in 1..setup_log.len() {
+                    finalization_log[i] = setup_log[i];
                 }
-            }
 
-            finalization_log
+                // Now we populate the first byte with number of public values
+                finalization_log[0] = 1;
+
+                // Iterate over the public values and append them to the log
+                for i in 0..$public_values_length {
+                    let public_value_bytes: [u8; 32] = self.public_values[i].to_be_bytes();
+                    for j in 0..public_value_bytes.len() {
+                        finalization_log[$setup_log_byte_length + i * 32 + j] = public_value_bytes[j];
+                    }
+                }
+
+                // We reset public storage to zero to achieve the effect of transient storage - kernels will squash
+                // the writes
+                context.storage_write(slot, [0; $setup_log_field_length]);
+
+                finalization_log
+            }
         }
 
         impl aztec::protocol_types::traits::Empty for $finalization_payload_name {
