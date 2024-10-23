@@ -583,7 +583,7 @@ comptime fn generate_finalization_payload(
 
     (quote {
         struct $finalization_payload_name {
-            context: &mut aztec::prelude::PublicContext
+            context: &mut aztec::prelude::PublicContext,
             hiding_point_slot: Field,
             setup_log_slot: Field,
             public_values: [Field; $public_values_length],
@@ -594,7 +594,7 @@ comptime fn generate_finalization_payload(
                 self.context = context;
 
                 self.hiding_point_slot = slot;
-                self.setup_log_slot = slot + aztec::protocol_types::point::POINT_LENGTH;
+                self.setup_log_slot = slot + aztec::protocol_types::point::POINT_LENGTH as Field;
 
                 $aux_vars_for_serialization
                 self.public_values = [$fields];
@@ -604,8 +604,8 @@ comptime fn generate_finalization_payload(
 
             fn emit_note_hash(self) {
                 // Read the hiding point from "transient" storage and check it's not empty to ensure the transfer was prepared
-                let hiding_point: Point = self.context.storage_read(self.hiding_point_slot);
-                assert(!is_empty(hiding_point), "transfer not prepared");
+                let hiding_point: aztec::prelude::Point = self.context.storage_read(self.hiding_point_slot);
+                assert(!aztec::protocol_types::traits::is_empty(hiding_point), "transfer not prepared");
 
                 $msm_aux_vars
                 let finalization_hiding_point = std::embedded_curve_ops::multi_scalar_mul(

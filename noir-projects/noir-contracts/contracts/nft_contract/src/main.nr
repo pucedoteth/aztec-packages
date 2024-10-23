@@ -16,7 +16,7 @@ contract NFT {
     },
         encrypted_logs::encrypted_note_emission::encode_and_encrypt_note,
         keys::getters::get_public_keys, note::constants::MAX_NOTES_PER_PAGE,
-        protocol_types::traits::is_empty, utils::comparison::Comparator,
+        utils::comparison::Comparator,
         protocol_types::{point::Point, traits::Serialize}, utils::bytes::fields_to_bytes,
         macros::{storage::storage, events::event, functions::{private, public, view, internal, initializer}}
     };
@@ -249,7 +249,7 @@ contract NFT {
         finalization_payload.emit_note_hash();
 
         // Emit final log
-        finalization_payload.emit_log(context);
+        finalization_payload.emit_log();
     }
 
     /**
