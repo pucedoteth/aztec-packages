@@ -185,8 +185,10 @@ contract NFT {
         };
         let note_setup_payload = NFTNote::setup_payload().new(to_npk_m_hash, note_randomness, to_note_slot);
 
-        // We encrypt and emit the partial note log
-        encrypt_and_emit_partial_log(context, note_setup_payload.log_plaintext, to_keys, to);
+        // We encrypt the partial note log
+        // Note: setup payload plaintext is 2*32+64 = 128, the full log is 128 + 353 = 481, each field can contain
+        // 31 bytes so we need 16 fields
+        let partial_log: [Field; 16] = encrypt_partial_log(&mut context, note_setup_payload.log_plaintext, to_keys, to);
 
         // Using the x-coordinate as a hiding point slot is safe against someone else interfering with it because
         // we have a guarantee that the public functions of the transaction are executed right after the private ones
@@ -259,13 +261,6 @@ contract NFT {
         // We insert the finalization note hash
         context.push_note_hash(finalization_payload.note_hash);
 
-        // We emit the `token_id` as unencrypted event such that the `NoteProcessor` can use it to reconstruct the note
-        context.emit_unencrypted_log(finalization_payload.log);
-
-        // At last we reset public storage to zero to achieve the effect of transient storage - kernels will squash
-        // the writes
-        context.storage_write(hiding_point_slot, Point::empty());
-
         // ############### HACKY NEW CODE TO BE POLISHED LATER ###############
         let partial_log_fields: [Field; 16] = context.storage_read(hiding_point_slot + 3);
         let partial_log: [u8; 481] = fields_to_bytes(partial_log_fields);
@@ -291,8 +286,12 @@ contract NFT {
             log[481 + i] = finalization_log[i];
         }
 
+        // We emit the `token_id` as unencrypted event such that the `NoteProcessor` can use it to reconstruct the note
         context.emit_unencrypted_log(log);
 
+        // At last we reset public storage to zero to achieve the effect of transient storage - kernels will squash
+        // the writes
+        context.storage_write(hiding_point_slot, Point::empty());
         context.storage_write(hiding_point_slot + 3, [0; 16]);
     }
 
